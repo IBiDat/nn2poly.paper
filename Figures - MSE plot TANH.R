@@ -10,14 +10,13 @@ library(viridis)
 ####################################
 # 2 - Define needed functions
 ####################################
-reshapingMSESimulations=function(simulation,h_1,L){
-  rownames(simulation)=c("tanh", "softplus", "sigmoid")
+reshapingMSESimulations=function(simulation,L){
+  rownames(simulation)=c("40", "70", "100")
   n_sim=dim(simulation)[2]
   df=as.data.frame(t(simulation))
   df$Layers=as.factor(rep(L,n_sim))
-  df$Neurons_per_layer=as.factor(rep(h_1,n_sim))
-  df=reshape::melt(df,id.vars=c("Layers","Neurons_per_layer"))
-  names(df)[c(3,4)]=c("Act.Function","MSE")
+  df=reshape::melt(df,id.vars=c("Layers"))
+  names(df)[c(2,3)]=c("h_l","MSE")
   return(df)
 }
 
@@ -26,35 +25,30 @@ reshapingMSESimulations=function(simulation,h_1,L){
 ####################################
 
 # Load the data
-simulation1 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_3")
-simulation2 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_5")
-simulation3 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_7")
-simulation4 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_3")
-simulation5 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_5")
-simulation6 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_7")
+simulation1 <- readRDS("data/Simulation_tanh_number_layers_1")
+simulation2 <- readRDS("data/Simulation_tanh_number_layers_3")
+simulation3 <- readRDS("data/Simulation_tanh_number_layers_5")
+simulation4 <- readRDS("data/Simulation_tanh_number_layers_7")
+
 
 
 # Reshape Data using custom function 
-df1 <- reshapingMSESimulations(simulation1, "h_l = 32", 3)
-df2 <- reshapingMSESimulations(simulation2, "h_l = 32", 5)
-df3 <- reshapingMSESimulations(simulation3, "h_l = 32", 7)
-
-df4 <- reshapingMSESimulations(simulation4, "h_l = 64", 3)
-df5 <- reshapingMSESimulations(simulation5, "h_l = 64", 5)
-df6 <- reshapingMSESimulations(simulation6, "h_l = 64", 7)
+df1 <- reshapingMSESimulations(simulation1, 1)
+df2 <- reshapingMSESimulations(simulation2, 3)
+df3 <- reshapingMSESimulations(simulation3, 5)
+df4 <- reshapingMSESimulations(simulation4, 7)
 
 
 # Joint dataframe
-df.first <- rbind(df1, df2, df3, df4, df5, df6)
+df.plot <- rbind(df1, df2, df3, df4)
 
 # Y axis breakpoints
 # my_breaks <- 10^c(-5,-3,-1,1,3,5,7,9,11)
 
 # Create the plot
-plot1 <- ggplot(df.first, aes(x = Layers, y = MSE, fill = Act.Function)) +
+plot1 <- ggplot(df.plot, aes(x = Layers, y = MSE, fill = h_l)) +
   geom_boxplot() +
-  facet_grid(Neurons_per_layer ~ .) +
-  labs(fill = "Activation\n Function") +
+  labs(fill = "h_l") +
   xlab("Number of Layers") +
   scale_y_continuous("MSE between NN and obtained PR", trans = "log10")+
   theme_half_open() +

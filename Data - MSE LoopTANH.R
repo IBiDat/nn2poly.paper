@@ -175,7 +175,7 @@ perform_example_from_train_test<- function(train,
 
 
 # Number of simulations for each combination of hyperparameters
-n_simulation <- 3
+n_simulation <- 50
 
 library(tictoc)
 tic.clearlog()
@@ -242,12 +242,9 @@ tic("total")
         )
   
       }
-    
+      # Store MSE values for the given AF with the other AFs
+      simulations_MSE_all_n_neurons <- rbind(simulations_MSE_all_n_neurons, simulations_MSE)
     }  
-    # Store MSE values for the given AF with the other AFs
-    simulations_MSE_all_n_neurons <- rbind(simulations_MSE_all_n_neurons, simulations_MSE)
-      
-
     
     # Generate a name to store the simulation file,
     simulation_name <- paste("temporal/Simulation_tanh",
