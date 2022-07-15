@@ -104,7 +104,7 @@ for (Q in Q_vec){
 toc(log = TRUE, quiet = FALSE)
 
 log.txt <- tic.log(format = TRUE)
-log.lst <- tic.log(format = FALSE)
+
 
 # Store de time values from the tictoc logs:
 name_time_logs_txt <- paste("temporal/timelogs_equivalent_with",
