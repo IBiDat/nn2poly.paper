@@ -1,0 +1,359 @@
+---
+title: "Figures - Polynomial terms N and partitions size and time"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(nn2poly)
+library(tictoc)
+
+
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(viridis)
+library(latex2exp)
+```
+
+
+In this document we explore the number of elements in a polynomial for several values of $Q$ and $p$ (Section 1), the time and memory size neded to compute and store all partitions needed for a polynomial for several values of $Q$ and $p$ (Section 2) and again the time and memory size needed to compute the partitions for the same polynomials but using the "equivalent multiset trick" (Section 3).
+
+
+# Number of terms in a polynomial. 
+
+Given the dimension $p$ and the order $Q$, the number of terms that the polynomial would have is:
+
+$$
+N_{p,Q}=\sum_{T=0}^{Q}{{p+T-1}\choose{T}}
+$$
+
+which can be computed with the following function:
+
+```{r}
+computeNTermsPolynomial <- function(p,Q){
+n_terms <- 0
+for( T in 0:Q){
+  n_terms <- n_terms + choose(p+T-1,T)
+}
+n_terms
+}
+
+```
+
+```{r}
+p <- 3
+Q <- 2
+computeNTermsPolynomial(p,Q)
+```
+
+Loop over several values of $p$ and $Q$:
+
+
+```{r}
+n_p <- 30
+n_Q <- 10
+p_vec <- 1:n_p
+Q_vec <- 2:n_Q
+
+
+results <- matrix(0L, nrow = length(p_vec)*length(Q_vec), ncol = 3)
+colnames(results) <- c("p", "Q", "N")
+
+index <- 1
+for(p in p_vec){
+  for(Q in Q_vec){
+    results[index,1] <- p
+    results[index,2] <- Q
+    results[index,3] <- computeNTermsPolynomial(p,Q)
+    index <- index + 1
+  }
+}
+
+
+df <- as.data.frame(results)
+df <- df %>% mutate_at("Q", as.factor)
+df <- df %>% group_by(Q)
+
+```
+
+Plot the results:
+
+```{r}
+
+plot_N_p_Q <- ggplot(df, aes(x=p, y=N, group=Q, color=Q)) + 
+  scale_color_viridis(discrete = TRUE, option = "D", direction = -1, begin = 0.2, end = 0.8) +
+  geom_line() + 
+  geom_point() +
+  scale_y_continuous(trans='log10') +
+  guides(colour = guide_legend(reverse=T)) +
+  theme_half_open() + 
+  background_grid()
+  
+
+plot_N_p_Q
+```
+Save results in temporal file:
+
+```{r}
+setEPS()
+postscript("temporal/number_of_terms_polynomial.eps", width = 6, height = 3)
+plot_N_p_Q
+dev.off()
+```
+
+
+# Plot with all partitions
+
+These partitions are generated in the file `Data - Partitions time and memory size.Rmd` and stored in folder `data`. 
+
+
+```{r}
+# Chose values for p and Q
+p_vec <- c(4,5,6)
+Q_vec <- c(4,6,8,10)
+```
+
+
+```{r}
+log.txt <- readRDS("data/timelogs_full_with_max_p_6_max_Q_10_txt")
+
+# The values can be read from the item as:
+writeLines(unlist(log.txt))
+```
+
+Extract time values for the plot:
+
+```{r}
+time <- rep(0,length(unlist(log.txt))-1)
+
+
+for (i in 1:length(time)){
+  i1 <- stringr::str_locate(unlist(log.txt)[i],": ")[1,"end"]
+  i2 <- stringr::str_locate(unlist(log.txt)[i]," sec")[1,"start"]
+  time[i] <- as.numeric(stringr::str_sub(unlist(log.txt)[i],i1+1,i2-1))
+}
+
+time
+
+```
+Extract also memory size for the plot:
+
+
+Calculamos también el tamaño en bytes de todas las particiones. Sacar el numero de particiones también valdría pero me da problemas con el más grande, hacerlo en el server mejor.
+
+```{r}
+
+size_partitions <- rep(0,length(time))
+
+i <-1
+for (Q in Q_vec){
+  for (p in p_vec){
+
+    # Generate a name to store the simulation file,
+    name <- paste("data/all_partitions_full",
+                           "p", p,
+                           "Q", Q,
+                           sep = "_")
+    
+    # Save simulation data
+    size_partitions[i] <- file.info(name)$size
+    i <- i+1
+  }
+}
+
+
+size_partitions
+
+```
+
+Create a dataframe with the desired values:
+
+```{r}
+
+p_results <- rep(p_vec,length(Q_vec))
+Q_results <- c(rep(Q_vec[1],length(p_vec)),
+               rep(Q_vec[2],length(p_vec)),
+               rep(Q_vec[3],length(p_vec)),
+               rep(Q_vec[4],length(p_vec)))
+
+df <- as.data.frame(cbind(p_results,Q_results,time,size_partitions))
+names(df) <- c("p","Q","time","size")
+
+df
+```
+
+
+
+```{r}
+
+df <- df %>% mutate_at("Q", as.factor)
+df <- df %>% group_by(Q)
+df
+
+
+plot_time_full <- ggplot(df, aes(x=p, y=time, group=Q, color=Q)) + 
+  geom_line() + 
+  geom_point() +
+  ylab("time") +
+  scale_color_viridis(discrete = TRUE, option = "D", direction = -1, begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(3L,4L,5L,6L,7L)) +
+  scale_y_continuous(trans='log10') +
+  guides(colour = guide_legend(reverse=T)) +
+  theme_half_open() + 
+  background_grid()
+
+
+plot_size_full <- ggplot(df, aes(x=p, y=size, group=Q, color=Q)) + 
+  geom_line() + 
+  geom_point() +
+  ylab("size") +
+  scale_color_viridis(discrete = TRUE, option = "D", direction = -1, begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(3L,4L,5L,6L,7L)) +
+  scale_y_continuous(trans='log10') +
+  guides(colour = guide_legend(reverse=T)) +
+  theme_half_open() + 
+  background_grid()
+
+
+
+plot_full <- ggarrange(plot_time_full, plot_size_full, ncol=2, nrow=1, common.legend = TRUE, legend="right", labels = c("A","B"))
+
+plot_full
+```
+
+```{r}
+setEPS()
+postscript("temporal/partitions_time_and_size_full.eps", width = 6, height = 3)
+plot_full
+dev.off()
+```
+
+
+
+# Plot with all partitions (using only the equivalents)
+
+
+
+```{r}
+log.txt <- readRDS("data/timelogs_equivalent_with_max_p_6_max_Q_10_txt")
+
+# The values can be read from the item as:
+writeLines(unlist(log.txt))
+```
+
+Extract time values for the plot:
+
+```{r}
+time <- rep(0,length(unlist(log.txt))-1)
+
+
+for (i in 1:length(time)){
+  i1 <- stringr::str_locate(unlist(log.txt)[i],": ")[1,"end"]
+  i2 <- stringr::str_locate(unlist(log.txt)[i]," sec")[1,"start"]
+  time[i] <- as.numeric(stringr::str_sub(unlist(log.txt)[i],i1+1,i2-1))
+}
+
+time
+
+```
+Extract also memory size for the plot:
+
+
+Calculamos también el tamaño en bytes de todas las particiones. Sacar el numero de particiones también valdría pero me da problemas con el más grande, hacerlo en el server mejor.
+
+```{r}
+
+size_partitions <- rep(0,length(time))
+
+i <-1
+for (Q in Q_vec){
+  for (p in p_vec){
+
+    # Generate a name to store the simulation file,
+    name <- paste("data/all_partitions_equivalent",
+                           "p", p,
+                           "Q", Q,
+                           sep = "_")
+    
+    # Save simulation data
+    size_partitions[i] <- file.info(name)$size
+    i <- i+1
+  }
+}
+
+
+size_partitions
+
+```
+
+Create a dataframe with the desired values:
+
+```{r}
+
+p_results <- rep(p_vec,length(Q_vec))
+Q_results <- c(rep(Q_vec[1],length(p_vec)),
+               rep(Q_vec[2],length(p_vec)),
+               rep(Q_vec[3],length(p_vec)),
+               rep(Q_vec[4],length(p_vec)))
+
+df <- as.data.frame(cbind(p_results,Q_results,time1,size_partitions))
+names(df) <- c("p","Q","time","size")
+
+df
+```
+
+
+
+```{r}
+
+df <- df %>% mutate_at("Q", as.factor)
+df <- df %>% group_by(Q)
+df
+
+
+plot_time_equivalent <- ggplot(df, aes(x=p, y=time, group=Q, color=Q)) + 
+  geom_line() + 
+  geom_point() +
+  ylab("time") +
+  scale_color_viridis(discrete = TRUE, option = "D", direction = -1, begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(3L,4L,5L))+
+  scale_y_continuous(trans='log10') +
+  guides(colour = guide_legend(reverse=T)) +
+  theme_half_open() + 
+  background_grid()
+
+
+plot_size_equivalent <- ggplot(df, aes(x=p, y=size, group=Q, color=Q)) + 
+  geom_line() + 
+  geom_point() +
+  ylab("size") +
+  scale_color_viridis(discrete = TRUE, option = "D", direction = -1, begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(3L,4L,5L)) +
+  scale_y_continuous(trans='log10') +
+  guides(colour = guide_legend(reverse=T)) +
+  theme_half_open() + 
+  background_grid()
+
+
+
+plot_equivalent <- ggarrange(plot_time_equivalent, plot_size_equivalent, ncol=2, nrow=1, common.legend = TRUE, legend="right", labels = c("A","B"))
+
+plot_equivalent
+```
+
+```{r}
+setEPS()
+postscript("temporal/partitions_time_and_size_equivalent.eps", width = 6, height = 3)
+plot_equivalent
+dev.off()
+```
+
+Otros posibles plots: poner al lado time de los 2 y size de los 2 para comparar, pero tendria que ser misma escala.
+
+Ponerlos juntos con escala magma en otros?
+
+
+
+

@@ -1,0 +1,120 @@
+---
+title: "Data - Partitions time and memory size"
+author: "Pablo Morala"
+date: '2022-07-14'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tictoc)
+```
+
+
+This file generates the partitions needed for the figures in `Figures - Polynomial terms N and partitions size and time.Rmd`, storing their generation times and memory size for several values of $p$ and $Q$.  This is donde both for all possible partitions (Part 1) and then using the equivalent partitions trick to only generate some of them (Part 2).
+
+So they are comparable, both are implemented in C++ and will use the same values for $p$ and $Q$:
+
+```{r}
+# Chose values for p and Q
+p_vec <- c(4,5,6)
+Q_vec <- c(4,6,8,10)
+```
+
+
+# All partitions
+
+
+```{r}
+
+# Clear log times and start counting the total time
+tic.clearlog()
+tic("total")
+for (Q in Q_vec){
+  for (p in p_vec){
+    tic(paste("all_partitions_full",
+                           "p", p,
+                           "Q", Q,
+                           sep = "_"))
+    all_partitions <- nn2poly:::generate_partitions_full(p, Q)
+
+    # Generate a name to store the simulation file,
+    name <- paste("temporal/all_partitions_full",
+                             "p", p,
+                             "Q", Q,
+                             sep = "_")
+    print(name)
+    
+    # Save simulation data
+    saveRDS(all_partitions, name)
+    toc(log = TRUE, quiet = FALSE)
+    rm(all_partitions)
+  }
+}
+toc(log = TRUE, quiet = FALSE)
+
+log.txt <- tic.log(format = TRUE)
+log.lst <- tic.log(format = FALSE)
+
+# Store de time values from the tictoc logs:
+name_time_logs_txt <- paste("temporal/timelogs_full_with",
+                                   "max_p", p_vec[length(p_vec)],
+                                   "max_Q", Q_vec[length(Q_vec)],
+                                   "txt",
+                                   sep = "_")
+
+
+# Save logs:
+saveRDS(log.txt, name_time_logs_txt)
+
+
+```
+
+
+
+# Partitions of equivalent multisets
+
+
+```{r}
+
+# Clear log times and start counting the total time
+tic.clearlog()
+tic("total")
+for (Q in Q_vec){
+  for (p in p_vec){
+    tic(paste("all_partitions_equivalent",
+                           "p", p,
+                           "Q", Q,
+                           sep = "_"))
+    all_partitions <- nn2poly:::generate_partitions(p, Q)
+
+    # Generate a name to store the simulation file,
+    name <- paste("temporal/all_partitions_equivalent",
+                             "p", p,
+                             "Q", Q,
+                             sep = "_")
+    print(name)
+    
+    # Save simulation data
+    saveRDS(all_partitions, name)
+    toc(log = TRUE, quiet = FALSE)
+    rm(all_partitions)
+  }
+}
+toc(log = TRUE, quiet = FALSE)
+
+log.txt <- tic.log(format = TRUE)
+log.lst <- tic.log(format = FALSE)
+
+# Store de time values from the tictoc logs:
+name_time_logs_txt <- paste("temporal/timelogs_equivalent_with",
+                                   "max_p", p_vec[length(p_vec)],
+                                   "max_Q", Q_vec[length(Q_vec)],
+                                   "txt",
+                                   sep = "_")
+
+# Save logs:
+saveRDS(log.txt, name_time_logs_txt)
+
+
+```
