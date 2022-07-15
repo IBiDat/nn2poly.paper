@@ -257,6 +257,5 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
 }
 
 
-beepr::beep()
 
 
