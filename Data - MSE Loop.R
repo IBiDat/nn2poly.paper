@@ -28,8 +28,8 @@ n_sample <- 500
 mean_range <- c(-100, 100)
 beta_range <- c(-50, 50)
 error_var <- 10
-p <- 10
-q_original <- 3
+p <- 5
+q_original <- 2
 
 # Set random seed for reproducibility (only affects R, not keras?)
 set.seed(my_seed)
@@ -173,7 +173,11 @@ perform_example_from_train_test<- function(train,
 
 
 # Number of simulations for each combination of hyperparameters
-n_simulation <- 1
+n_simulation <- 50
+
+library(tictoc)
+tic.clearlog()
+tic("total")
 
 for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
   for (L in n_hidden_layers){
@@ -256,6 +260,12 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
   
 }
 
+toc(log = TRUE, quiet = FALSE)
+
+log.txt <- tic.log(format = TRUE)
+
+# Save logs:
+saveRDS(log.txt, "temporal/timelogs_MSE_loop")
 
 
 
