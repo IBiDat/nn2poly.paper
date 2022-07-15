@@ -26,12 +26,12 @@ reshapingMSESimulations=function(simulation,h_1,L){
 ####################################
 
 # Load the data
-simulation1 <- readRDS("data/Simulation_Hidden_per_layer_32_number_layers_3")
-simulation2 <- readRDS("data/Simulation_Hidden_per_layer_32_number_layers_5")
-simulation3 <- readRDS("data/Simulation_Hidden_per_layer_32_number_layers_7")
-simulation4 <- readRDS("data/Simulation_Hidden_per_layer_32_number_layers_3")
-simulation5 <- readRDS("data/Simulation_Hidden_per_layer_32_number_layers_5")
-simulation6 <- readRDS("data/Simulation_Hidden_per_layer_32_number_layers_7")
+simulation1 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_3")
+simulation2 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_5")
+simulation3 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_7")
+simulation4 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_3")
+simulation5 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_5")
+simulation6 <- readRDS("data/Simulation_uniform__Hidden_per_layer_32_number_layers_7")
 
 
 # Reshape Data using custom function 
@@ -64,7 +64,7 @@ plot1
 
 # Save the plot in temporal file
 setEPS()
-postscript("temporal-results/fig_MSE_boxplots.eps", width = 6, height = 5)
+postscript("temporal/fig_MSE_boxplots.eps", width = 6, height = 5)
 plot1
 dev.off()
 

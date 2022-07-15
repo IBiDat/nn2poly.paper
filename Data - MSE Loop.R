@@ -16,30 +16,28 @@ library(nn2poly)
 library(nn2poly.tools)
 library(keras)
 library(tensorflow)
-tensorflow::tf$random$set_seed(12345) # Needed to have reproducible results with keras
 
 ####################################
 # 3 - Set up all  fixed parameters 
 ####################################
 
 # Fixed Parameters for the data generation
+# Refer to data_generation.R file to see the details.
+source("data_generation.R")
 my_seed <- 12345
 n_sample <- 500
-mean_range <- c(-100, 100)
-beta_range <- c(-50, 50)
-error_var <- 10
+unif_range <- c(-1,1)
+error_var <- 0.1
+number_interactions <-5
 p <- 5
 q_original <- 2
-
-# Set random seed for reproducibility (only affects R, not keras?)
-set.seed(my_seed)
 
 # keras hyperparameters
 my_loss <- "mse"
 my_metrics <- "mse"
 my_optimizer <- optimizer_rmsprop()
-my_epochs <- 50
-my_batch <- 50
+my_epochs <- 500
+my_batch <- 100
 my_validation_split <- 0.2
 my_verbose <- 0
 my_max_norm <- list("l1_norm", 1)
@@ -58,6 +56,12 @@ h_neurons_at_each_layer_vector <- c(32,64)
 the_3_chosen_af <- c("tanh","softplus","sigmoid")
 
 n_hidden_layers <- c(3,5,7)
+
+
+# Set seeds
+# Set random seed for reproducibility (only affects R, not keras?)
+set.seed(my_seed)
+tensorflow::tf$random$set_seed(12345) # Needed to have reproducible results with keras
 
 
 ####################################
@@ -173,7 +177,7 @@ perform_example_from_train_test<- function(train,
 
 
 # Number of simulations for each combination of hyperparameters
-n_simulation <- 50
+n_simulation <- 3
 
 library(tictoc)
 tic.clearlog()
@@ -210,7 +214,7 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
       for (i in 1:n_simulation) {
         
         # Data generation:
-        data_generated <- generate_normal_data(n_sample, p, q_original, mean_range, beta_range, error_var)
+        data_generated <- data_generation(n_sample, p, q_original, unif_range, number_interactions = number_interactions, error_var)
         data <- data_generated$data
         original_betas <- data_generated$original_betas
         
@@ -248,7 +252,7 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
     }
     
     # Generate a name to store the simulation file,
-    simulation_name <- paste("temporal/Simulation",
+    simulation_name <- paste("temporal/Simulation_uniform_",
                              "Hidden_per_layer", h_neurons_at_each_layer,
                              "number_layers", L,
                              sep = "_")
@@ -265,7 +269,7 @@ toc(log = TRUE, quiet = FALSE)
 log.txt <- tic.log(format = TRUE)
 
 # Save logs:
-saveRDS(log.txt, "temporal/timelogs_MSE_loop")
+saveRDS(log.txt, "temporal/timelogs_uniform_MSE_loop")
 
 
 
