@@ -17,6 +17,9 @@ library(nn2poly.tools)
 library(keras)
 library(tensorflow)
 
+library(future.apply)
+plan(multisession)# Optional to use parallel computation
+
 ####################################
 # 3 - Set up all  fixed parameters 
 ####################################
