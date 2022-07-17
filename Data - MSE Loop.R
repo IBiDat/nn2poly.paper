@@ -17,6 +17,9 @@ library(nn2poly.tools)
 library(keras)
 library(tensorflow)
 
+library(future.apply)
+plan(multisession)# Optional to use parallel computation
+
 ####################################
 # 3 - Set up all  fixed parameters 
 ####################################
@@ -51,11 +54,11 @@ q_taylor_at_each_layer <- 8 # We can set a high value as we are going
 # to limit it with a forced max Q.
 forced_max_Q <- 3 # Choose 3 as data generated will be of order 2.
 
-h_neurons_at_each_layer_vector <- c(32,64)
+h_neurons_at_each_layer_vector <- c(50,100)
 
 the_3_chosen_af <- c("tanh","softplus","sigmoid")
 
-n_hidden_layers <- c(3,5,7)
+n_hidden_layers <- c(1,3,5,7)
 
 
 # Set seeds
@@ -122,6 +125,10 @@ perform_example_from_train_test<- function(train,
   # Obtain the predicted values with the NN to compare them
   prediction_NN <- predict(nn, test_x)
   
+  # MSE between NN and Poly
+  n_test <- length(test_y)
+  MSE_NN_vs_original<- sum((prediction_NN - test_y)^2) / n_test
+  
   # Extract the weights:
   keras_weights <- keras::get_weights(nn)
   
@@ -166,7 +173,11 @@ perform_example_from_train_test<- function(train,
   # MSE between NN and Poly
   MSE_NN_vs_poly <- sum((prediction_NN - prediction_poly)^2) / n_test
   
-  return(MSE_NN_vs_poly)
+  output <- vector(mode = "list", length = 0)
+  output$MSE_NN_vs_poly <- MSE_NN_vs_poly
+  output$MSE_NN_vs_original <- MSE_NN_vs_original
+  
+  return(output)
 }
 
 
@@ -177,7 +188,7 @@ perform_example_from_train_test<- function(train,
 
 
 # Number of simulations for each combination of hyperparameters
-n_simulation <- 3
+n_simulation <- 20
 
 library(tictoc)
 tic.clearlog()
@@ -195,7 +206,8 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
     
     # We will store the simulations for the 3 AF at together
     # This is done because of how we will later plot the simulations
-    simulations_MSE_all_AF <- NULL
+    simulations_MSE_all_AF_NN_vs_poly <- NULL
+    simulations_MSE_all_AF_NN_vs_original<- NULL
     
     for (af in the_3_chosen_af){
       
@@ -209,8 +221,8 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
       
       ###### Loop in n_simulation:
       # Loop over number of simulations for a given combination of hyperparameters
-      simulations_MSE <- rep(0, n_simulation)
-      
+      aux1 <- rep(0, n_simulation)
+      aux2 <- rep(0, n_simulation)
       for (i in 1:n_simulation) {
         
         # Data generation:
@@ -227,7 +239,7 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
         
         
         # Compute the MSE for this example
-        simulations_MSE[i] <- perform_example_from_train_test(
+        aux <- perform_example_from_train_test(
           train = train,
           test = test,
           af_string_list = af_string_list,
@@ -243,23 +255,31 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
           my_validation_split = my_validation_split,
           my_verbose
         )
-
+        
+        aux1[i] <- aux$MSE_NN_vs_poly
+        aux2[i] <- aux$MSE_NN_vs_original
       }
       
       # Store MSE values for the given AF with the other AFs
-      simulations_MSE_all_AF <- rbind(simulations_MSE_all_AF, simulations_MSE)
+      simulations_MSE_all_AF_NN_vs_poly <- rbind(simulations_MSE_all_AF_NN_vs_poly, aux1)
+      simulations_MSE_all_AF_NN_vs_original <- rbind(simulations_MSE_all_AF_NN_vs_original, aux2)
+      
       
     }
     
     # Generate a name to store the simulation file,
-    simulation_name <- paste("temporal/Simulation_uniform_",
+    simulation_name1 <- paste("temporal/Simulation_NN_vs_poly_uniform",
                              "Hidden_per_layer", h_neurons_at_each_layer,
                              "number_layers", L,
                              sep = "_")
+    simulation_name2 <- paste("temporal/Simulation_NN_vs_original_uniform",
+                              "Hidden_per_layer", h_neurons_at_each_layer,
+                              "number_layers", L,
+                              sep = "_")
     
     # Save simulation data
-    saveRDS(simulations_MSE_all_AF, simulation_name)
-    
+    saveRDS(simulations_MSE_all_AF_NN_vs_poly , simulation_name1)
+    saveRDS(simulations_MSE_all_AF_NN_vs_original , simulation_name2)
   }
   
 }
@@ -269,7 +289,7 @@ toc(log = TRUE, quiet = FALSE)
 log.txt <- tic.log(format = TRUE)
 
 # Save logs:
-saveRDS(log.txt, "temporal/timelogs_uniform_MSE_loop")
+saveRDS(log.txt, "temporal/timelogs_original_and_poly_uniform_MSE_loop")
 
 
 
