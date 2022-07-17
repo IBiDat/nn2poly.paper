@@ -26,9 +26,9 @@ reshapingMSESimulations=function(simulation,h_l,L){
 ####################################
 
 # Load the data
-h_neurons_at_each_layer_vector <- c(64)
+h_neurons_at_each_layer_vector <- c(50)
 the_3_chosen_af <- c("tanh","softplus","sigmoid")
-n_hidden_layers <- c(3)
+n_hidden_layers <- c(1,3,5)
 
 
 simulation_NN_vs_poly <- vector(mode = "list", length = 0L)
