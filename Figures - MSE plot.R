@@ -6,6 +6,8 @@
 library(ggplot2)
 library(cowplot)
 library(viridis)
+IEEE_width_inches <- 3.5
+my_wdith <- IEEE_width_inches
 
 ####################################
 # 2 - Define needed functions
@@ -26,9 +28,9 @@ reshapingMSESimulations=function(simulation,h_l,L){
 ####################################
 
 # Load the data
-h_neurons_at_each_layer_vector <- c(50)
+h_neurons_at_each_layer_vector <- c(50,100)
 the_3_chosen_af <- c("tanh","softplus","sigmoid")
-n_hidden_layers <- c(1,3,5)
+n_hidden_layers <- c(1,3,5,7)
 
 
 simulation_NN_vs_poly <- vector(mode = "list", length = 0L)
@@ -36,12 +38,12 @@ simulation_NN_vs_original <- vector(mode = "list", length = 0L)
 i <- 1
 for (h_l in h_neurons_at_each_layer_vector){
   for (L in n_hidden_layers){
-     aux <- readRDS(paste0("temporal/Simulation_NN_vs_poly_uniform_Hidden_per_layer_",
+     aux <- readRDS(paste0("data/Simulation_NN_vs_poly_uniform_Hidden_per_layer_",
                                       h_l,
                                       "_number_layers_",
                                       L))
       simulation_NN_vs_poly[[i]] <- reshapingMSESimulations(aux, paste0("h_l = ",h_l) , L)
-      aux <- readRDS(paste0("temporal/Simulation_NN_vs_original_uniform_Hidden_per_layer_",
+      aux <- readRDS(paste0("data/Simulation_NN_vs_original_uniform_Hidden_per_layer_",
                                                  h_l,
                                                  "_number_layers_",
                                                  L))
@@ -80,7 +82,7 @@ plot2 <- ggplot(df_NN_vs_original, aes(x = Layers, y = MSE, fill = Act.Function)
   facet_grid(Neurons_per_layer ~ .) +
   labs(fill = "Activation\n Function") +
   xlab("Number of Layers") +
-  scale_y_continuous("MSE between NN and obtained PR", trans = "log10")+
+  scale_y_continuous("MSE between NN and original Y", trans = "log10")+
   theme_half_open() +
   background_grid(major = "y")
 
@@ -90,7 +92,13 @@ plot2
 
 # Save the plot in temporal file
 setEPS()
-postscript("temporal/fig_MSE_boxplots.eps", width = 6, height = 5)
+postscript("temporal/fig_MSE_nn2poly.eps", width = my_width, height = my_width)
+plot1
+dev.off()
+
+# Save the plot in temporal file
+setEPS()
+postscript("temporal/fig_MSE_NN_vs_Y.eps", width = my_width, height = my_width)
 plot1
 dev.off()
 
