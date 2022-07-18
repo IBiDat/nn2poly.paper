@@ -6,6 +6,8 @@
 library(ggplot2)
 library(cowplot)
 library(viridis)
+IEEE_width_inches <- 3.5
+my_width <- IEEE_width_inches
 
 ####################################
 # 2 - Define needed functions
@@ -58,7 +60,7 @@ plot1
 
 # Save the plot in temporal file
 setEPS()
-postscript("temporal/fig_MSE_boxplots.eps", width = 6, height = 5)
+postscript("temporal/fig_tanh_MSE_boxplots.eps", width = 2*my_width, height = my_width)
 plot1
 dev.off()
 

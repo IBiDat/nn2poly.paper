@@ -7,7 +7,7 @@ library(ggplot2)
 library(cowplot)
 library(viridis)
 IEEE_width_inches <- 3.5
-my_wdith <- IEEE_width_inches
+my_width <- IEEE_width_inches
 
 ####################################
 # 2 - Define needed functions
@@ -92,13 +92,13 @@ plot2
 
 # Save the plot in temporal file
 setEPS()
-postscript("temporal/fig_MSE_nn2poly.eps", width = my_width, height = my_width)
+postscript("temporal/fig_MSE_nn2poly.eps", width = 2*my_width, height =1.5*my_width)
 plot1
 dev.off()
 
 # Save the plot in temporal file
 setEPS()
-postscript("temporal/fig_MSE_NN_vs_Y.eps", width = my_width, height = my_width)
-plot1
+postscript("temporal/fig_MSE_NN_vs_Y.eps", width = 2*my_width, height = 1.5**my_width)
+plot2
 dev.off()
 

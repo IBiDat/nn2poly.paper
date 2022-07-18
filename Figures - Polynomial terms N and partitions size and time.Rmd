@@ -15,6 +15,10 @@ library(ggpubr)
 library(cowplot)
 library(viridis)
 library(latex2exp)
+
+
+IEEE_width_inches <- 3.5
+my_width <- IEEE_width_inches
 ```
 
 
@@ -98,7 +102,7 @@ Save results in temporal file:
 
 ```{r}
 setEPS()
-postscript("temporal/number_of_terms_polynomial.eps", width = 6, height = 3)
+postscript("temporal/number_of_terms_polynomial.eps", width = 2*my_width, height = my_width)
 plot_N_p_Q
 dev.off()
 ```
@@ -225,7 +229,7 @@ plot_full
 
 ```{r}
 setEPS()
-postscript("temporal/partitions_time_and_size_full.eps", width = 6, height = 3)
+postscript("temporal/partitions_time_and_size_full.eps", width = 2*my_width, height = my_width)
 plot_full
 dev.off()
 ```
@@ -298,7 +302,7 @@ Q_results <- c(rep(Q_vec[1],length(p_vec)),
                rep(Q_vec[3],length(p_vec)),
                rep(Q_vec[4],length(p_vec)))
 
-df <- as.data.frame(cbind(p_results,Q_results,time1,size_partitions))
+df <- as.data.frame(cbind(p_results,Q_results,time,size_partitions))
 names(df) <- c("p","Q","time","size")
 
 df
@@ -345,7 +349,7 @@ plot_equivalent
 
 ```{r}
 setEPS()
-postscript("temporal/partitions_time_and_size_equivalent.eps", width = 6, height = 3)
+postscript("temporal/partitions_time_and_size_equivalent.eps", width = 2*my_width, height = my_width)
 plot_equivalent
 dev.off()
 ```
