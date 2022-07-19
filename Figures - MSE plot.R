@@ -38,12 +38,12 @@ simulation_NN_vs_original <- vector(mode = "list", length = 0L)
 i <- 1
 for (h_l in h_neurons_at_each_layer_vector){
   for (L in n_hidden_layers){
-     aux <- readRDS(paste0("data/Simulation_NN_vs_poly_uniform_Hidden_per_layer_",
+     aux <- readRDS(paste0("temporal/Simulation_NN_vs_poly_l2_Hidden_per_layer_",
                                       h_l,
                                       "_number_layers_",
                                       L))
       simulation_NN_vs_poly[[i]] <- reshapingMSESimulations(aux, paste0("h_l = ",h_l) , L)
-      aux <- readRDS(paste0("data/Simulation_NN_vs_original_uniform_Hidden_per_layer_",
+      aux <- readRDS(paste0("temporal/Simulation_NN_vs_original_l2_Hidden_per_layer_",
                                                  h_l,
                                                  "_number_layers_",
                                                  L))
@@ -63,6 +63,8 @@ for (j in 1: length(simulation_NN_vs_poly)){
 
 # Y axis breakpoints
 # my_breaks <- 10^c(-5,-3,-1,1,3,5,7,9,11)
+
+df_NN_vs_poly <- na.omit(df_NN_vs_poly)
 
 # Create the plot
 plot1 <- ggplot(df_NN_vs_poly, aes(x = Layers, y = MSE, fill = Act.Function)) +

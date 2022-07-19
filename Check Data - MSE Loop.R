@@ -20,6 +20,9 @@ library(cowplot)
 library(ggplot2)
 tensorflow::tf$random$set_seed(12345) # Needed to have reproducible results with keras
 
+library(future.apply)
+plan(multisession)
+
 ####################################
 # 3 - Set up all  fixed parameters 
 ####################################
@@ -47,7 +50,9 @@ my_epochs <- 1000
 my_batch <- 200
 my_validation_split <- 0.2
 my_verbose <- 0
+# my_max_norm <- list("l1_norm", 1)
 my_max_norm <- list("l1_norm", 1)
+# my_max_norm <- list("no_constraint", 1)
 
 
 ####################################
@@ -62,9 +67,9 @@ forced_max_Q <- 3 # Choose 3 as data generated will be of order 2.
 
 #-------------------------------------------------------------
 
-L <- 7
+L <- 3
 h_neurons_at_each_layer <- 32
-af <- "tanh"
+af <- "softplus"
 
 # q taylor with 1 at the end for regression
 q_taylor_vector <- rep(q_taylor_at_each_layer,L)
@@ -144,6 +149,9 @@ plot(history)
 # Obtain the predicted values with the NN to compare them
 prediction_NN <- predict(nn, test_x)
 plot_NN_performance <- plot_NN_PR_comparison(unname(test_y), prediction_NN)
+plot_NN_performance <- plot_NN_performance +
+  ggplot2::labs(x = "Original Y") +
+  theme_half_open()
 plot_NN_performance
 
 # MSE between NN and Poly

@@ -43,7 +43,7 @@ my_epochs <- 500
 my_batch <- 100
 my_validation_split <- 0.2
 my_verbose <- 0
-my_max_norm <- list("l1_norm", 1)
+my_max_norm <- list("l2_norm", 1)
 
 
 ####################################
@@ -268,11 +268,11 @@ for (h_neurons_at_each_layer in h_neurons_at_each_layer_vector){
     }
     
     # Generate a name to store the simulation file,
-    simulation_name1 <- paste("temporal/Simulation_NN_vs_poly_uniform",
+    simulation_name1 <- paste("temporal/Simulation_NN_vs_poly_l2",
                              "Hidden_per_layer", h_neurons_at_each_layer,
                              "number_layers", L,
                              sep = "_")
-    simulation_name2 <- paste("temporal/Simulation_NN_vs_original_uniform",
+    simulation_name2 <- paste("temporal/Simulation_NN_vs_original_l2",
                               "Hidden_per_layer", h_neurons_at_each_layer,
                               "number_layers", L,
                               sep = "_")
