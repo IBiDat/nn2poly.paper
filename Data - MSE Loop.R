@@ -38,8 +38,8 @@ q_original <- 2
 # keras hyperparameters
 my_loss <- "mse"
 my_metrics <- "mse"
-my_optimizer <- optimizer_rmsprop()
-my_epochs <- 800
+my_optimizer <- optimizer_adam()
+my_epochs <- 700
 my_batch <- 100
 my_validation_split <- 0.2
 my_verbose <- 0
