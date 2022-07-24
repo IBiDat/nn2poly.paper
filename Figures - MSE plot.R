@@ -38,12 +38,12 @@ simulation_NN_vs_original <- vector(mode = "list", length = 0L)
 i <- 1
 for (h_l in h_neurons_at_each_layer_vector){
   for (L in n_hidden_layers){
-     aux <- readRDS(paste0("temporal/Simulation_NN_vs_poly_l2_Hidden_per_layer_",
+     aux <- readRDS(paste0("data/Simulation_NN_vs_poly_adam_Hidden_per_layer_",
                                       h_l,
                                       "_number_layers_",
                                       L))
       simulation_NN_vs_poly[[i]] <- reshapingMSESimulations(aux, paste0("h_l = ",h_l) , L)
-      aux <- readRDS(paste0("temporal/Simulation_NN_vs_original_l2_Hidden_per_layer_",
+      aux <- readRDS(paste0("data/Simulation_NN_vs_original_adam_Hidden_per_layer_",
                                                  h_l,
                                                  "_number_layers_",
                                                  L))
@@ -71,7 +71,7 @@ plot1 <- ggplot(df_NN_vs_poly, aes(x = Layers, y = MSE, fill = Act.Function)) +
   geom_boxplot() +
   facet_grid(Neurons_per_layer ~ .) +
   labs(fill = "Activation\n Function") +
-  xlab("Number of Layers") +
+  xlab("Number of hidden layers") +
   scale_y_continuous("MSE between NN and obtained PR", trans = "log10")+
   theme_half_open() +
   background_grid(major = "y")
@@ -83,7 +83,7 @@ plot2 <- ggplot(df_NN_vs_original, aes(x = Layers, y = MSE, fill = Act.Function)
   geom_boxplot() +
   facet_grid(Neurons_per_layer ~ .) +
   labs(fill = "Activation\n Function") +
-  xlab("Number of Layers") +
+  xlab("Number of hidden layers") +
   scale_y_continuous("MSE between NN and original Y", trans = "log10")+
   theme_half_open() +
   background_grid(major = "y")
