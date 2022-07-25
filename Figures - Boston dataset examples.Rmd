@@ -17,6 +17,9 @@ library(tensorflow)
 library(cowplot)
 library(ggplot2)
 
+IEEE_width_inches <- 3.5
+my_width <- IEEE_width_inches
+
 
 library(future.apply)
 plan(multisession)
@@ -248,6 +251,50 @@ af_string_list[L+1] <- "linear"
 output1 <- output
 output1 
 ```
+
+Saving figures:
+
+```{r}
+
+saveRDS(output1, file = "Boston_performance_example")
+
+
+```
+
+```{r}
+simulations = readRDS("Boston_performance_example")
+
+
+```
+
+
+
+
+```{r}
+
+plot.example <- cowplot::plot_grid(output1$plot_NN_performance, output1$plot_PR_vs_NN, labels = c("A", "B"), scale = 0.9, label_size = 10)
+
+plot.example
+
+
+```
+
+
+
+```{r}
+# Save the plot in temporal file
+setEPS()
+postscript("temporal/fig_Boston_NN_performance.eps", width = 2*my_width, height = 1*my_width)
+output1$plot_NN_performance
+dev.off()
+```
+
+
+
+
+
+
+
 
 
 ```{r}
