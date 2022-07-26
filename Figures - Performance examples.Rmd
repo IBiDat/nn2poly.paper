@@ -240,10 +240,10 @@ Hyperbolic tangent, l1-norm constraint, 3 hidden layers, 50 neurons per layer.
 
 ```{r, warning=FALSE}
 
-L <- 2
+L <- 3
 h_neurons_at_each_layer <- 50
 af <- "softplus"
-my_max_norm <- list("l1_norm", 1)
+my_max_norm <- list("l2_norm", 1)
 my_optimizer <- optimizer_adam()
 forced_max_Q <- 3
 
@@ -300,17 +300,17 @@ plot.example <- cowplot::plot_grid(example1$plot_NN_performance, example1$plot_P
 
 plot.example
 
-plot.example2 <- cowplot::plot_grid(example1$plot_taylor[[1]], example1$plot_taylor[[2]], labels = c("Layer 1", "Layer 2"), scale = 0.8, label_size = 10, ncol = 1)
+plot.example2 <- cowplot::plot_grid(example1$plot_taylor[[1]], example1$plot_taylor[[2]], example1$plot_taylor[[3]], labels = c("Layer 1", "Layer 2", "Layer 3"), scale = 0.8, label_size = 10, ncol = 1)
 
 plot.example2
 
 setEPS()
-postscript("temporal/fig_performance_l1_tanh.eps", width = 2*my_width, height = 1*my_width)
+postscript("temporal/fig_performance_l1.eps", width = 2*my_width, height = 1*my_width)
 plot.example
 dev.off()
 
 setEPS()
-postscript("temporal/fig_taylor_layers_l1_tanh.eps", width = 2*my_width, height =2*my_width)
+postscript("temporal/fig_taylor_layers_l1.eps", width = 2*my_width, height =6*my_width)
 plot.example2
 dev.off()
 
@@ -326,10 +326,10 @@ Softplus, l2-norm constraint, 2 hidden layers, 50 neurons per layer.
 
 ```{r, warning=FALSE}
 
-L <- 2
+L <- 3
 h_neurons_at_each_layer <- 50
 af <- "softplus"
-my_max_norm <- list("l2_norm", 1)
+my_max_norm <- list("no_constraint", 1)
 my_optimizer <- optimizer_adam()
 forced_max_Q <- 3
 
@@ -386,17 +386,17 @@ plot.example <- cowplot::plot_grid(example2$plot_NN_performance, example2$plot_P
 
 plot.example
 
-plot.example2 <- cowplot::plot_grid(example2$plot_taylor[[1]], example2$plot_taylor[[2]], labels = c("Layer 1", "Layer 2"), scale = 0.8, label_size = 10, ncol = 1)
+plot.example2 <- cowplot::plot_grid(example2$plot_taylor[[1]], example2$plot_taylor[[2]], example2$plot_taylor[[3]], labels = c("Layer 1", "Layer 2", "Layer 3"), scale = 0.8, label_size = 10, ncol = 1)
 
 plot.example2
 
 setEPS()
-postscript("temporal/fig_performance_l2_softplus.eps", width = 2*my_width, height = 1*my_width)
+postscript("temporal/fig_performance_nc.eps", width = 2*my_width, height = 1*my_width)
 plot.example
 dev.off()
 
 setEPS()
-postscript("temporal/fig_taylor_layers_l2_softplus.eps", width = 2*my_width, height =2*my_width)
+postscript("temporal/fig_taylor_layers_nc.eps", width = 2*my_width, height =2*my_width)
 plot.example2
 dev.off()
 
