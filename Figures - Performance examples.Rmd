@@ -310,7 +310,7 @@ plot.example
 dev.off()
 
 setEPS()
-postscript("temporal/fig_taylor_layers_l1.eps", width = 2*my_width, height =6*my_width)
+postscript("temporal/fig_taylor_layers_l1.eps", width = 2*my_width, height =2*my_width)
 plot.example2
 dev.off()
 
@@ -404,5 +404,8 @@ dev.off()
 
 
 
+```{r}
+
+```
 
 
