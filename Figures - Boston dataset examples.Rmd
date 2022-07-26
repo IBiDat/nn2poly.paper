@@ -219,6 +219,7 @@ af_string_list[L+1] <- "linear"
   
   # Plot the PR vs NN predictions
   plot_PR_vs_NN <- plot_NN_PR_comparison(prediction_poly, prediction_NN) +
+    ggplot2::labs(x = "Predicted Y with polynomial") +
     theme_half_open()
   
   # Plot the taylor expansion at each layer:
@@ -238,7 +239,7 @@ af_string_list[L+1] <- "linear"
   output$MSE_NN_vs_poly <- MSE_NN_vs_poly
   output$MSE_NN_vs_original <- MSE_NN_vs_original
   output$plot_NN_performance <- plot_NN_performance
-  output$plot_PR_vs_NN <- plot_PR_vs_NN
+  output$plot_PR_vs_NN -> plot_PR_vs_NN
   output$plot_taylor <- plot_taylor
   output$plot_history <- plot_history
   output$labels <- labels
@@ -262,7 +263,7 @@ saveRDS(output1, file = "Boston_performance_example")
 ```
 
 ```{r}
-simulations = readRDS("Boston_performance_example")
+output1 = readRDS("Boston_performance_example")
 
 
 ```
@@ -272,9 +273,12 @@ simulations = readRDS("Boston_performance_example")
 
 ```{r}
 
-plot.example <- cowplot::plot_grid(output1$plot_NN_performance, output1$plot_PR_vs_NN, labels = c("A", "B"), scale = 0.9, label_size = 10)
 
-plot.example
+
+
+plot_performance <- cowplot::plot_grid(output1$plot_NN_performance, output1$plot_PR_vs_NN + ggplot2::labs(x = "Predicted Y with polynomial"), labels = c("A", "B"), scale = 0.9, label_size = 10)
+
+plot_performance
 
 
 ```
@@ -285,7 +289,7 @@ plot.example
 # Save the plot in temporal file
 setEPS()
 postscript("temporal/fig_Boston_NN_performance.eps", width = 2*my_width, height = 1*my_width)
-output1$plot_NN_performance
+plot_performance
 dev.off()
 ```
 
@@ -299,6 +303,10 @@ dev.off()
 
 ```{r}
 
+coeffs <- output1$coeffs
+
+labels <- output1$labels
+
 sorted_coeffs <- sort(abs(coeffs), decreasing = TRUE)
 
 ```
@@ -306,7 +314,7 @@ sorted_coeffs <- sort(abs(coeffs), decreasing = TRUE)
 ```{r}
 #tol = 1e-2
 #n_selected <- sum(abs(coeffs) > tol)
- n_selected <- 25
+ n_selected <- 20
  tol <- sorted_coeffs[n_selected+1]
 n_selected
 ```
@@ -545,7 +553,7 @@ M <- as.data.frame(M)
 
 
 # perform the mean to obtain the order using the mean:
-aux <- sort(abs(colMeans(M)),decreasing = TRUE)[1:25]
+aux <- sort(abs(colMeans(M)),decreasing = TRUE)[1:20]
 df <- matrix(aux, nrow = 1)
 colnames(df) <- names(aux)
 rownames(df) <- "mean"
@@ -583,12 +591,24 @@ plot_error_bars <- ggplot(data) +
 
 plot_error_bars
 
-  pdf(file="plot_error_bars.pdf", height = 3, width = 6)
-  plot_error_bars
-  dev.off()
 ```
 
 
+
+
+```{r}
+# Save the plot in temporal file
+setEPS()
+postscript("temporal/fig_Boston_barplot.eps", width = 2*my_width, height = 1.5*my_width)
+plot_error_bars
+dev.off()
+```
+
+```{r}
+pdf(file="temporal/fig_Boston_barplot.pdf", width = 2*my_width, height = 1.5*my_width)
+plot_error_bars
+dev.off()
+```
 
 
 

@@ -20,8 +20,10 @@ library(ggplot2)
 library(future.apply)
 plan(multisession)
 
+IEEE_width_inches <- 3.5
+my_width <- IEEE_width_inches
 
-my_seed <- 42
+my_seed <- 12
 set.seed(my_seed)
 tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results with keras
 ```
@@ -72,8 +74,7 @@ These parameters will also be held constant over the networks
 # keras hyperparameters
 my_loss <- "mse"
 my_metrics <- "mse"
-my_optimizer <- optimizer_adam()
-my_epochs <- 1000
+my_epochs <- 2000
 my_batch <- 100
 my_validation_split <- 0.2
 my_verbose <- 0
@@ -82,9 +83,8 @@ my_verbose <- 0
 
 
 ```{r}
-q_taylor_at_each_layer <- 8 # We can set a high value as we are going
+q_taylor_at_each_layer <- 5 # We can set a high value as we are going
 # to limit it with a forced max Q.
-forced_max_Q <- 3 # Choose 3 as data generated will be of order 2.
 ```
 
 
@@ -183,7 +183,6 @@ perform_example_from_train_test<- function(train,
     af_string_list = af_string_list,
     q_taylor_vector = q_taylor_vector,
     forced_max_Q = forced_max_Q,
-    all_partitions = all_partitions,
     store_coeffs = FALSE
   )
   
@@ -211,13 +210,13 @@ perform_example_from_train_test<- function(train,
     weights_list = nn_weights,
     af_string_list = af_string_list,
     q_taylor_vector = q_taylor_vector
-  ) 
-  
+  )
+
   for (i in 1:length(plot_taylor)){
-    plot_taylor[[i]] <- plot_taylor[[i]] + 
+    plot_taylor[[i]] <- plot_taylor[[i]] +
       theme_half_open()
   }
-  
+
   output <- vector(mode = "list", length = 0)
   output$MSE_NN_vs_poly <- MSE_NN_vs_poly
   output$MSE_NN_vs_original <- MSE_NN_vs_original
@@ -243,8 +242,10 @@ Hyperbolic tangent, l1-norm constraint, 3 hidden layers, 50 neurons per layer.
 
 L <- 2
 h_neurons_at_each_layer <- 50
-af <- "tanh"
+af <- "softplus"
 my_max_norm <- list("l1_norm", 1)
+my_optimizer <- optimizer_adam()
+forced_max_Q <- 3
 
 # q taylor with 1 at the end for regression
 q_taylor_vector <- rep(q_taylor_at_each_layer,L)
@@ -291,33 +292,88 @@ example1
 
 
 
+Creating a better plot for the paper:
+
+```{r}
+
+plot.example <- cowplot::plot_grid(example1$plot_NN_performance, example1$plot_PR_vs_NN + ggplot2::labs(x = "Predicted Y with polynomial"), labels = c("A", "B"), scale = 0.9, label_size = 10)
+
+plot.example
+
+plot.example2 <- cowplot::plot_grid(example1$plot_taylor[[1]], example1$plot_taylor[[2]], labels = c("Layer 1", "Layer 2"), scale = 0.8, label_size = 10, ncol = 1)
+
+plot.example2
+
+setEPS()
+postscript("temporal/fig_performance_l1_tanh.eps", width = 2*my_width, height = 1*my_width)
+plot.example
+dev.off()
+
+setEPS()
+postscript("temporal/fig_taylor_layers_l1_tanh.eps", width = 2*my_width, height =2*my_width)
+plot.example2
+dev.off()
+
+```
 
 
 
 
+# Example 2
+
+
+Softplus, l2-norm constraint, 2 hidden layers, 50 neurons per layer.
+
+```{r, warning=FALSE}
+
+L <- 2
+h_neurons_at_each_layer <- 50
+af <- "softplus"
+my_max_norm <- list("l2_norm", 1)
+my_optimizer <- optimizer_adam()
+forced_max_Q <- 3
+
+# q taylor with 1 at the end for regression
+q_taylor_vector <- rep(q_taylor_at_each_layer,L)
+q_taylor_vector <- c(q_taylor_vector,1)
+
+# h neurons with 1 at the end for regression
+h_neurons_vector <- rep(h_neurons_at_each_layer,L)
+h_neurons_vector <- c(h_neurons_vector,1)
+
+
+###### Create first the list with the af at each layer:
+af_string_list <- vector(mode = "list", length = L+1)
+for (i in 1:L){
+  af_string_list[i] <- af
+}
+# Add linear at the end so we have regression setting.
+af_string_list[L+1] <- "linear"
 
 
 
+example2 <- perform_example_from_train_test(
+          train = train,
+          test = test,
+          af_string_list = af_string_list,
+          h_neurons_vector = h_neurons_vector,
+          q_taylor_vector = q_taylor_vector,
+          forced_max_Q = forced_max_Q,
+          my_max_norm = my_max_norm,
+          my_optimizer = my_optimizer,
+          my_loss = my_loss,
+          my_metrics = my_metrics,
+          my_epochs = my_epochs,
+          my_batch = my_batch,
+          my_validation_split = my_validation_split,
+          my_verbose
+        )
+```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```{r}
+example2
+```
 
 
 
@@ -326,23 +382,27 @@ Creating a better plot for the paper:
 
 ```{r}
 
-plot.example <- cowplot::plot_grid(my_nn$plot_NN_performance, my_nn$plot_PR_vs_NN, labels = c("A", "B"), scale = 0.9, label_size = 10)
+plot.example <- cowplot::plot_grid(example2$plot_NN_performance, example2$plot_PR_vs_NN + ggplot2::labs(x = "Predicted Y with polynomial"), labels = c("A", "B"), scale = 0.9, label_size = 10)
 
 plot.example
 
-plot.example2 <- cowplot::plot_grid(my_nn$plot_taylor[[1]], my_nn$plot_taylor[[2]], labels = c("Layer 1", "Layer 2"), scale = 0.8, label_size = 10, ncol = 1)
+plot.example2 <- cowplot::plot_grid(example2$plot_taylor[[1]], example2$plot_taylor[[2]], labels = c("Layer 1", "Layer 2"), scale = 0.8, label_size = 10, ncol = 1)
 
 plot.example2
 
 setEPS()
-postscript("temporal/fig_performance_l1.eps", width = 6, height = 4)
+postscript("temporal/fig_performance_l2_softplus.eps", width = 2*my_width, height = 1*my_width)
 plot.example
 dev.off()
 
 setEPS()
-postscript("temporal/fig_taylor_layers_l1.eps", width = 6, height = 4)
+postscript("temporal/fig_taylor_layers_l2_softplus.eps", width = 2*my_width, height =2*my_width)
 plot.example2
 dev.off()
 
 ```
+
+
+
+
 
