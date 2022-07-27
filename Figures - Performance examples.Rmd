@@ -17,13 +17,10 @@ library(tensorflow)
 library(cowplot)
 library(ggplot2)
 
-library(future.apply)
-plan(multisession)
-
 IEEE_width_inches <- 3.5
 my_width <- IEEE_width_inches
 
-my_seed <- 12
+my_seed <- 42
 set.seed(my_seed)
 tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results with keras
 ```
