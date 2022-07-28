@@ -71,7 +71,7 @@ These parameters will also be held constant over the networks
 # keras hyperparameters
 my_loss <- "mse"
 my_metrics <- "mse"
-my_epochs <- 2000
+my_epochs <- 500000
 my_batch <- 100
 my_validation_split <- 0.2
 my_verbose <- 0
@@ -240,7 +240,7 @@ Hyperbolic tangent, l1-norm constraint, 3 hidden layers, 50 neurons per layer.
 L <- 3
 h_neurons_at_each_layer <- 50
 af <- "softplus"
-my_max_norm <- list("l2_norm", 1)
+my_max_norm <- list("l1_norm", 1)
 my_optimizer <- optimizer_adam()
 forced_max_Q <- 3
 
@@ -280,10 +280,13 @@ example1 <- perform_example_from_train_test(
           my_verbose
         )
 ```
+```{r}
+saveRDS(example1,"nn_example_softplus_100000")
+```
 
 
 ```{r}
-example1
+example1 <- readRDS("nn_example_softplus_100000")
 ```
 
 
@@ -329,6 +332,7 @@ af <- "softplus"
 my_max_norm <- list("no_constraint", 1)
 my_optimizer <- optimizer_adam()
 forced_max_Q <- 3
+my_epochs <- 3000
 
 # q taylor with 1 at the end for regression
 q_taylor_vector <- rep(q_taylor_at_each_layer,L)
