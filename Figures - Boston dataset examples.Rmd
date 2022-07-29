@@ -30,244 +30,14 @@ tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results wi
 ```
 
 
-# Data preparation
-
-In order to show the most common application of `nn2poly`, we will be solving a regression problem on the Boston dataset, included in the `keras`package.
-
-```{r}
-boston_housing <- dataset_boston_housing()
-
-train_x <- boston_housing$train$x
-train_y <- boston_housing$train$y
-
-test_x <- boston_housing$test$x
-test_y <- boston_housing$test$y
-
-```
+# Single performance example:
 
 
 ```{r}
-# Join the predictor variables (x) and the response (y)
-train <- as.data.frame(train_x)
-train$Y <- matrix(train_y, ncol = 1)
 
-test <- as.data.frame(test_x)
-test$Y <- matrix(test_y, ncol = 1)
-
-# Use the train data to obtain the scaling parameters, then apply them both to 
-# test and train
-maxs <- apply(train, 2, max)
-mins <- apply(train, 2, min) 
-
-train <- as.data.frame(scale(train, 
-                             center = mins + (maxs - mins) / 2, 
-                             scale = (maxs - mins) / 2))
-test <- as.data.frame(scale(test, 
-                             center = mins + (maxs - mins) / 2, 
-                             scale = (maxs - mins) / 2))
-
-# Divide again in x and y
-train_x <- as.matrix(subset(train, select = -c(Y)))
-train_y <- as.matrix(train$Y)
-
-test_x <- as.matrix(subset(test, select = -c(Y)))
-test_y <- as.matrix(test$Y)
-
-# Define the dimension p of the problem:
-p <- dim(train_x)[2]
+output1 = readRDS("data/Boston_performance_example")
 
 ```
-
-
-# Keras and nn2poly hyperparameters
-
-These parameters will also be held constant over the networks
-
-```{r}
-# keras hyperparameters
-my_loss <- "mse"
-my_metrics <- "mse"
-my_epochs <- 1000
-my_batch <- 100
-my_validation_split <- 0.2
-my_verbose <- 0
-
-```
-
-
-```{r}
-q_taylor_at_each_layer <- 8 # We can set a high value as we are going
-# to limit it with a forced max Q.
-forced_max_Q <- 3 # Choose 3 as data generated will be of order 2.
-```
-
-
-
-
-# Example
-
-  
-```{r, warning=FALSE}
-
-L <- 3
-h_neurons_at_each_layer <- 100
-af <- "tanh"
-my_max_norm <- list("l1_norm", 1)
-my_optimizer <- optimizer_adam()
-
-# q taylor with 1 at the end for regression
-q_taylor_vector <- rep(q_taylor_at_each_layer,L)
-q_taylor_vector <- c(q_taylor_vector,1)
-
-# h neurons with 1 at the end for regression
-h_neurons_vector <- rep(h_neurons_at_each_layer,L)
-h_neurons_vector <- c(h_neurons_vector,1)
-
-
-###### Create first the list with the af at each layer:
-af_string_list <- vector(mode = "list", length = L+1)
-for (i in 1:L){
-  af_string_list[i] <- af
-}
-# Add linear at the end so we have regression setting.
-af_string_list[L+1] <- "linear"
-
-
-  
-  # Build the nn
-  nn <- build_keras_model(
-    p,
-    af_string_list,
-    h_neurons_vector,
-    my_max_norm
-  )
-  
-  # Compile the model
-  compile(nn,
-          loss = my_loss,
-          optimizer = my_optimizer,
-          metrics = my_metrics
-  )
-  
-  # Fit the model
-  history <- fit(nn,
-                 train_x,
-                 train_y,
-                 verbose = my_verbose,
-                 epochs = my_epochs,
-                 validation_split = my_validation_split,
-                 batch_size = my_batch
-  )
-  plot_history <- plot(history)
-
-  # Obtain the predicted values with the NN to compare them
-  prediction_NN <- predict(nn, test_x)
-  
-  # plot that comparison between NN and original
-  plot_NN_performance <- plot_NN_PR_comparison(unname(test_y), prediction_NN)
-  
-  plot_NN_performance <- plot_NN_performance +
-    ggplot2::labs(x = "Original Y") +
-    theme_half_open()
-  
-  # MSE between NN and Poly
-  n_test <- length(test_y)
-  MSE_NN_vs_original<- sum((prediction_NN - test_y)^2) / n_test
-  
-  # Extract the weights:
-  keras_weights <- keras::get_weights(nn)
-  
-  n <- length(keras_weights)
-  
-  if(my_max_norm[[1]]=="no_constraint"){
-    
-    n2 <- n/2
-    
-    nn_weights <- vector(mode = "list", length = n2)
-    for (i in 1:n2){
-      nn_weights[[i]] <- rbind(keras_weights[[2*i]], keras_weights[[2*i-1]])
-    }
-    
-  } else {
-    nn_weights <- keras_weights[1:(n - 2)]
-    
-    nn_weights[[n - 1]] <- rbind(keras_weights[[n]], keras_weights[[n - 1]])
-  }
-  
-  # use the  nn2poly algorithm
-  coeffs <- nn2poly::nn2poly_algorithm(
-    weights_list = nn_weights,
-    af_string_list = af_string_list,
-    q_taylor_vector = q_taylor_vector,
-    forced_max_Q = forced_max_Q,
-    store_coeffs = FALSE
-  )
-  
-  labels <- coeffs[[length(coeffs)]][[1]]
-  coeffs <- coeffs[[length(coeffs)]][[2]]
-  
-  # Obtain the predicted values for the test data with our polynomial
-  n_test <- length(test_y)
-  prediction_poly <- rep(0, n_test)
-  
-  for (i in 1:n_test) {
-    prediction_poly[i] <- nn2poly::eval_poly(test[i, seq(p)], labels = labels, coeffs = coeffs)
-  }
-    
-  # MSE between NN and Poly
-  MSE_NN_vs_poly <- sum((prediction_NN - prediction_poly)^2) / n_test
-  
-  # Plot the PR vs NN predictions
-  plot_PR_vs_NN <- plot_NN_PR_comparison(prediction_poly, prediction_NN) +
-    ggplot2::labs(x = "Predicted Y with polynomial") +
-    theme_half_open()
-  
-  # Plot the taylor expansion at each layer:
-  plot_taylor <- plot_taylor_and_synpatic_potentials(
-    data = train,
-    weights_list = nn_weights,
-    af_string_list = af_string_list,
-    q_taylor_vector = q_taylor_vector
-  ) 
-  
-  for (i in 1:length(plot_taylor)){
-    plot_taylor[[i]] <- plot_taylor[[i]] + 
-      theme_half_open()
-  }
-  
-  output <- vector(mode = "list", length = 0)
-  output$MSE_NN_vs_poly <- MSE_NN_vs_poly
-  output$MSE_NN_vs_original <- MSE_NN_vs_original
-  output$plot_NN_performance <- plot_NN_performance
-  output$plot_PR_vs_NN -> plot_PR_vs_NN
-  output$plot_taylor <- plot_taylor
-  output$plot_history <- plot_history
-  output$labels <- labels
-  output$coeffs <- coeffs
-  
-```
-
-
-```{r}
-output1 <- output
-output1 
-```
-
-Saving figures:
-
-```{r}
-
-saveRDS(output1, file = "Boston_performance_example")
-
-
-```
-
-```{r}
-output1 = readRDS("Boston_performance_example")
-
-
-```
-
 
 
 
@@ -300,235 +70,12 @@ dev.off()
 
 
 
-
-
-
-
-
-
-```{r}
-
-coeffs <- output1$coeffs
-
-labels <- output1$labels
-
-sorted_coeffs <- sort(abs(coeffs), decreasing = TRUE)
-
-```
-
-```{r}
-#tol = 1e-2
-#n_selected <- sum(abs(coeffs) > tol)
- n_selected <- 20
- tol <- sorted_coeffs[n_selected+1]
-n_selected
-```
-
-```{r}
-selected_coeffs <- coeffs[abs(coeffs) >tol]
-selected_labels <- labels[abs(coeffs) >tol]
-
-# We can store the discarded ones 
-discarded_coeffs <- coeffs[abs(coeffs) <=tol]
-discarded_labels <- labels[abs(coeffs) <=tol]
-
-selected_labels_string = rep("0",n_selected)
-
-for (i in 1:n_selected) {
-    # Create the label as a string of the form "l_1 l_2 ... l_t"
-    selected_labels_string[i] <- paste(as.character(selected_labels[[i]]), collapse = ",")
-}
-
-selected_labels_string
-
-names(selected_coeffs) <- selected_labels_string
-```
-
-```{r}
-
-#pdf(file="plot_Boston.pdf", height = 5, width = 6)
-barplot(selected_coeffs, col="steelblue", xlab = "Polynomial variables", ylab = "Coefficient value", main = "25 most relevant coefficients", las=2)
-#dev.off()
-```
-
-```{r}
-
-
-#pdf(file="plot_Boston_sorted.pdf", height = 3, width = 6)
-barplot(sort(abs(selected_coeffs), decreasing = TRUE), col="steelblue", xlab = "Polynomial variables", ylab = "Coefficient value",main = "Coefficients sorted by absolute value", las=2)
-#dev.off()
-```
-
-
-```{r}
-summary(boston_housing$train$x)
-```
-
-
-```{r}
-# Obtain the predicted values for the test data with our Polynomial Regression
-n_test <- length(test_y)
-prediction_poly_selected <- rep(0, n_test)
-
-for (i in 1:n_test) {
-  prediction_poly_selected[i] <- eval_poly(test[i, seq(p)], labels = selected_labels, coeffs = selected_coeffs)
-}
-```
-
-
-```{r}
-
-# pdf(file="plot_Boston_performance_nn2poly.pdf", height = 5, width = 6)
-plot_NN_PR_comparison(prediction_poly_selected, prediction_NN)
-# dev.off()
-
-```
-
-
-Measure MSE between all and selected:
-
-```{r}
-sum((prediction_poly-prediction_poly_selected)^2)/n_test
-
-```
-
-
 # 10 NNs and average coeffs.
 
 
-
-
-```{r, warning=FALSE}
-n_sims <- 10
-simulations <- vector(mode="list", length = n_sims)
-for (sims in 1:n_sims){
-  
-  nn <- build_keras_model(p,
-    af_string_list,
-    h_neurons_vector,
-    my_max_norm)
-  
-  
-  # Compile the model
-	compile(nn,
-					loss = my_loss,
-					optimizer = my_optimizer,
-					metrics = my_metrics
-	)
-
-	# Fit the model
-	history <- fit(nn,
-								 train_x,
-								 train_y,
-								 verbose = my_verbose,
-								 epochs = my_epochs,
-								 validation_split = my_validation_split,
-								 batch_size = 500
-	)
-	
-	keras_weights <- keras::get_weights(nn)
-
-  n <- length(keras_weights)
-  
-  nn_weights <- keras_weights[1:(n-2)]
-  
-  nn_weights[[n-1]] <- rbind(keras_weights[[n]], keras_weights[[n-1]])
-  
-  # use the  nn2poly algorithm
-  coeffs <- nn2poly::nn2poly_algorithm(
-    weights_list = nn_weights,
-    af_string_list = af_string_list,
-    q_taylor_vector = q_taylor_vector,
-    forced_max_Q = forced_max_Q,
-    store_coeffs = FALSE
-  )
-  
-  labels <- coeffs[[length(coeffs)]][[1]]
-  coeffs <- coeffs[[length(coeffs)]][[2]]
-  
-  simulations[[sims]]$nn <- nn
-  simulations[[sims]]$coeffs <- coeffs
-  simulations[[sims]]$labels <- labels
-  
-}
-```
-
-
-
-
 ```{r}
-
-saveRDS(simulations, file = "Boston-simulations-multiple-nn-10-rmsprop")
-
-
+simulations = readRDS("data/Boston-simulations-multiple-nn-10")
 ```
-
-```{r}
-simulations = readRDS("Boston-simulations-multiple-nn-10-rmsprop")
-#simulations = readRDS("Boston-simulations-multiple-nn-10-adadelta")
-
-
-```
-
-
-
-
-Now we should get the 25 first coefficients to visualize:
-
-
-
-
-```{r}
-
-n_sims <- length(simulations)
-
-for (sim in 1:n_sims){
-  coeffs <- simulations[[sim]]$coeffs
-  labels <- simulations[[sim]]$labels
-  
-  
-  
-  sorted_coeffs <- sort(abs(coeffs), decreasing = TRUE)
-  
-  
-  # tol = 1e-2
-  # n_selected <- sum(abs(coeffs) > tol)
-  n_selected <- 25
-  tol <- sorted_coeffs[n_selected+1]
-  n_selected
-  
-  selected_coeffs <- coeffs[abs(coeffs) >tol]
-  selected_labels <- labels[abs(coeffs) >tol]
-  
-  
-  # We can store the discarded ones 
-  discarded_coeffs <- coeffs[abs(coeffs) <=tol]
-  discarded_labels <- labels[abs(coeffs) <=tol]
-  
-  selected_labels_string = rep("0",n_selected)
-  
-  for (i in 1:n_selected) {
-      # Create the label as a string of the form "l_1 l_2 ... l_t"
-      selected_labels_string[i] <- paste(as.character(selected_labels[[i]]), collapse = ",")
-  }
-  
-  
-  names(selected_coeffs) <- selected_labels_string
-  
-  simulations[[sim]]$selected_coeffs <- selected_coeffs
-}
-```
-
-
-```{r}
-for(sim in 1:n_sims){
-  
-  #pdf(file="plot_Boston_sorted.pdf", height = 3, width = 6)
-  barplot(sort(abs(simulations[[sim]]$selected_coeffs), decreasing = TRUE), col="steelblue", xlab = "Polynomial variables", ylab = "Coefficient value",main = "Coefficients sorted by absolute value", las=2)
-  #dev.off()
-}
-```
-
 
 
 Create Df for other plots:
@@ -537,8 +84,11 @@ The 20 selected are not the same in all the cases, and not same order. So maybe 
 
 ```{r}
 
+
+n_sims <- length(simulations)
+
 string_labels <- rep("0",length(simulations[[1]]$labels))
-for (i in 1:length(labels)) {
+for (i in 1:length(simulations[[1]]$labels)) {
     # Create the label as a string of the form "l_1 l_2 ... l_t"
     string_labels[i] <- paste(as.character(simulations[[1]]$labels[[i]]), collapse = ",")
 }
@@ -593,16 +143,6 @@ data <- data.frame(
   sd=my_sd
 )
 
-# sign_colors <- rep(0,length(aux_sign))
-# for( i in 1:length(aux_sign)){
-#   if (aux_sign[i]==1){
-#       sign_colors[i] <- "#00BA38"
-#   } else {
-#       sign_colors[i] <-  "#F8766D"
-#   }
-# }
-
-
 
 ```
 
@@ -629,6 +169,9 @@ pdf(file="temporal/fig_Boston_barplot.pdf", width = 2*my_width, height = 1.5*my_
 plot_error_bars
 dev.off()
 ```
+
+
+
 
 
 
