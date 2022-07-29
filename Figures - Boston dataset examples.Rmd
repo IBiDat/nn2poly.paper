@@ -291,6 +291,11 @@ setEPS()
 postscript("temporal/fig_Boston_NN_performance.eps", width = 2*my_width, height = 1*my_width)
 plot_performance
 dev.off()
+
+# Save as pdf as to avoid problems in arxiv
+pdf(file="temporal/fig_Boston_NN_performance.pdf", width = 2*my_width, height = 1*my_width)
+plot_performance
+dev.off()
 ```
 
 
@@ -553,10 +558,18 @@ M <- as.data.frame(M)
 
 
 # perform the mean to obtain the order using the mean:
-aux <- sort(abs(colMeans(M)),decreasing = TRUE)[1:20]
+aux_total <- sort(abs(colMeans(M)),decreasing = TRUE, index.return = TRUE)
+aux <- aux_total$x[1:20]
+aux_index <- aux_total$ix[1:20]
+
+
 df <- matrix(aux, nrow = 1)
+
+aux_sign <- sign(colMeans(M))[aux_index]
+ 
+df <- rbind(df,aux_sign)
 colnames(df) <- names(aux)
-rownames(df) <- "mean"
+rownames(df) <- c("mean","sign")
 
 df <- as.data.frame(df)
 
@@ -575,36 +588,43 @@ my_sd <- as.vector(my_sd)
 
 data <- data.frame(
   name=names(aux),
+  Sign = as.factor(aux_sign),
   value=unname(aux),
   sd=my_sd
 )
 
-library(ggplot2)
+# sign_colors <- rep(0,length(aux_sign))
+# for( i in 1:length(aux_sign)){
+#   if (aux_sign[i]==1){
+#       sign_colors[i] <- "#00BA38"
+#   } else {
+#       sign_colors[i] <-  "#F8766D"
+#   }
+# }
+
+
+
+```
+
+```{r}
 # Plot: 
-# Most basic error bar
-plot_error_bars <- ggplot(data) +
-    geom_bar( aes(x=reorder(name, -value), y=value), stat="identity", fill="steelblue", alpha=1) +
-    geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.4, colour="darkorange", alpha=0.9, size=1.3) + 
-    #cowplot::theme_half_open()+
-    labs(y = "Coefficient (absolute) values", x = "Variables")+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+plot_error_bars <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=Sign)) +
+    geom_bar( stat="identity", colour = "black",  alpha=1) +
+    geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.3, colour="black", alpha=0.9, size=1.3) + 
+    cowplot::theme_half_open()+
+    labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(legend.position = c(0.5, 0.8), legend.direction = "horizontal") +
+    labs(fill = "Coefficient sign")
+    
 
 plot_error_bars
-
 ```
 
 
 
-
 ```{r}
-# Save the plot in temporal file
-setEPS()
-postscript("temporal/fig_Boston_barplot.eps", width = 2*my_width, height = 1.5*my_width)
-plot_error_bars
-dev.off()
-```
-
-```{r}
+# Save as pdf as eps had problems with the error bars
 pdf(file="temporal/fig_Boston_barplot.pdf", width = 2*my_width, height = 1.5*my_width)
 plot_error_bars
 dev.off()

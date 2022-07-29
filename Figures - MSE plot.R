@@ -6,6 +6,7 @@
 library(ggplot2)
 library(cowplot)
 library(viridis)
+library(patchwork)
 IEEE_width_inches <- 3.5
 my_width <- IEEE_width_inches
 
@@ -90,17 +91,19 @@ plot2 <- ggplot(df_NN_vs_original, aes(x = Layers, y = MSE, fill = Act.Function)
 
 plot2
 
+plotfinal <- plot1 + plot2 + plot_layout(guides = 'collect')
+plotfinal
 
 
 # Save the plot in temporal file
 setEPS()
-postscript("temporal/fig_MSE_nn2poly.eps", width = 2*my_width, height =1.5*my_width)
-plot1
+postscript("temporal/fig_MSE.eps", width = 4*my_width, height =1.5*my_width)
+plotfinal
 dev.off()
 
-# Save the plot in temporal file
-setEPS()
-postscript("temporal/fig_MSE_NN_vs_Y.eps", width = 2*my_width, height = 1.5**my_width)
-plot2
+# Save as pdf as to avoid problems in arxiv
+pdf(file="temporal/fig_MSE.pdf", width = 4*my_width, height = 1.5*my_width)
+plotfinal
 dev.off()
+
 
