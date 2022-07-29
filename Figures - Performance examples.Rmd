@@ -32,7 +32,7 @@ In this Rmd file we are going to plot the figures from the simulations included 
 # Example 1 - Performance
 
 ```{r}
-example1 <- readRDS("nn_example_softplus_1000000")
+example1 <- readRDS("data/nn_example_softplus_l1")
 ```
 
 ```{r}
@@ -61,7 +61,7 @@ dev.off()
 # Example 2 - Performance
 
 ```{r}
-example2 <- readRDS("temporal/nn_performance_example_nc")
+example2 <- readRDS("data/nn_performance_example_nc")
 ```
 
 ```{r}

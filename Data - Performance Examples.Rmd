@@ -292,7 +292,7 @@ example1
 ```{r}
 # Remove history  plot as it is not used in the Figures
 example1$plot_history <- NULL
-saveRDS(example1,"nn_example_softplus_500000")
+saveRDS(example1,"temporal/nn_example_softplus_l1")
 ```
 
 
