@@ -54,7 +54,6 @@ computeNTermsPolynomial(p,Q)
 
 Loop over several values of $p$ and $Q$:
 
-
 ```{r}
 n_p <- 30
 n_Q <- 10
@@ -98,11 +97,17 @@ plot_N_p_Q <- ggplot(df, aes(x=p, y=N, group=Q, color=Q)) +
 
 plot_N_p_Q
 ```
+
 Save results in temporal file:
 
 ```{r}
 setEPS()
 postscript("temporal/number_of_terms_polynomial.eps", width = 2*my_width, height = my_width)
+plot_N_p_Q
+dev.off()
+
+# Save as pdf as to avoid problems in arxiv
+pdf(file="temporal/number_of_terms_polynomial.pdf", width = 2*my_width, height = my_width)
 plot_N_p_Q
 dev.off()
 ```
@@ -232,6 +237,12 @@ setEPS()
 postscript("temporal/partitions_time_and_size_full.eps", width = 2*my_width, height = my_width)
 plot_full
 dev.off()
+
+# Save as pdf as to avoid problems in arxiv
+pdf(file="temporal/partitions_time_and_size_full.pdf", width = 2*my_width, height = my_width)
+plot_full
+dev.off()
+
 ```
 
 
@@ -352,11 +363,15 @@ setEPS()
 postscript("temporal/partitions_time_and_size_equivalent.eps", width = 2*my_width, height = my_width)
 plot_equivalent
 dev.off()
+
+
+# Save as pdf as to avoid problems in arxiv
+pdf(file="temporal/partitions_time_and_size_equivalent.pdf", width = 2*my_width, height = my_width)
+plot_equivalent
+dev.off()
 ```
 
-Otros posibles plots: poner al lado time de los 2 y size de los 2 para comparar, pero tendria que ser misma escala.
 
-Ponerlos juntos con escala magma en otros?
 
 
 
