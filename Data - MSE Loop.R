@@ -289,7 +289,7 @@ toc(log = TRUE, quiet = FALSE)
 log.txt <- tic.log(format = TRUE)
 
 # Save logs:
-saveRDS(log.txt, "temporal/timelogs_original_and_poly_uniform_MSE_loop")
+saveRDS(log.txt, "temporal/timelogs_MSE_loop")
 
 
 
