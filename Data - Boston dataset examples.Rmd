@@ -1,5 +1,5 @@
 ---
-title: "Figures - Boston dataset examples"
+title: "Data - Boston dataset examples"
 author: "Pablo Morala"
 output: html_document
 ---
@@ -19,10 +19,6 @@ library(ggplot2)
 
 IEEE_width_inches <- 3.5
 my_width <- IEEE_width_inches
-
-
-library(future.apply)
-plan(multisession)
 
 my_seed <- 42
 set.seed(my_seed)
@@ -192,24 +188,17 @@ af_string_list[L+1] <- "linear"
   }
   
   # use the  nn2poly algorithm
-  coeffs <- nn2poly::nn2poly_algorithm(
+  all_layers_coeffs <- nn2poly::nn2poly_algorithm(
     weights_list = nn_weights,
     af_string_list = af_string_list,
     q_taylor_vector = q_taylor_vector,
     forced_max_Q = forced_max_Q,
-    store_coeffs = FALSE
   )
   
-  labels <- coeffs[[length(coeffs)]][[1]]
-  coeffs <- coeffs[[length(coeffs)]][[2]]
+  final_poly <- all_layers_coeffs[[length(all_layers_coeffs)]]
   
-  # Obtain the predicted values for the test data with our polynomial
-  n_test <- length(test_y)
-  prediction_poly <- rep(0, n_test)
-  
-  for (i in 1:n_test) {
-    prediction_poly[i] <- nn2poly::eval_poly(test[i, seq(p)], labels = labels, coeffs = coeffs)
-  }
+  # Polynomial prediction
+  prediction_poly <- as.vector(eval_poly(x = test_x, poly = final_poly))
     
   # MSE between NN and Poly
   MSE_NN_vs_poly <- sum((prediction_NN - prediction_poly)^2) / n_test
@@ -219,28 +208,13 @@ af_string_list[L+1] <- "linear"
     ggplot2::labs(x = "Predicted Y with polynomial") +
     theme_half_open()
   
-  # Plot the taylor expansion at each layer:
-  plot_taylor <- plot_taylor_and_synpatic_potentials(
-    data = train,
-    weights_list = nn_weights,
-    af_string_list = af_string_list,
-    q_taylor_vector = q_taylor_vector
-  ) 
-  
-  for (i in 1:length(plot_taylor)){
-    plot_taylor[[i]] <- plot_taylor[[i]] + 
-      theme_half_open()
-  }
-  
   output <- vector(mode = "list", length = 0)
   output$MSE_NN_vs_poly <- MSE_NN_vs_poly
   output$MSE_NN_vs_original <- MSE_NN_vs_original
   output$plot_NN_performance <- plot_NN_performance
-  output$plot_PR_vs_NN -> plot_PR_vs_NN
-  output$plot_taylor <- plot_taylor
+  output$plot_PR_vs_NN <- plot_PR_vs_NN
   output$plot_history <- plot_history
-  output$labels <- labels
-  output$coeffs <- coeffs
+  output$final_poly <- final_poly
   
 ```
 

@@ -1,5 +1,5 @@
 ---
-title: "Data - Covertype Dataset"
+title: "Data - Adult Dataset"
 author: "Pablo Morala"
 output: html_document
 ---
@@ -26,24 +26,36 @@ tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results wi
 ```
 
 
-This document contains an example of use for NN2Poly applied to the Covertype Dataset (https://archive.ics.uci.edu/ml/datasets/covertype), which consists of a cartographic classification problem into 7 types of forest.
 
-- The variables are only cartographic and do not use any kind of remotely sensed data. 
-- Data not scaled
-- And contains binary columns (0 or 1) for qualitative variables
-  - 12 first, quantitative
-  - 13 to 54, binary variables
-  - 55, response variable
 
 # Data preparation
 
 ```{r data-loading}
 # Load the data
-data_raw <- read.table("real-datasets/covertype/covtype.data.gz", sep = ",")
+data_raw <- read.table("real-datasets/adult/adult.data", sep = ",")
 
 head(data_raw)
 # names(data_raw)
 # summary(data_raw)
+
+
+```
+
+
+```{r data-preparation}
+require(tidyr)
+require(dplyr)
+
+# change all character columns to factors
+df <- data_raw %>%
+  mutate_if(sapply(data_raw, is.character), as.factor)
+
+head(df)
+summary(df)
+
+df %>% mutate(value = 1)  %>% spread(V2, value,  fill = 0 ) 
+
+
 
 # Define dimension p (number of predictor variables)
 p <- dim(data_raw)[2] - 1
@@ -54,6 +66,9 @@ n_class <- max(data_raw[,(p+1)])
 # Move objective classes from (1:7) to (0:6), needed for tensoflow
 data_raw[,(p+1)] <- data_raw[,(p+1)] - 1
 ```
+
+
+
 
 ```{r data-scaling}
 # Scale the data in the desired interval and separate train and test
@@ -88,7 +103,7 @@ First, we determine the model by defining its hyperparameters and structure:
   my_optimizer <- optimizer_adam()
   my_epochs <- 1000
   my_validation_split <- 0.1
-  my_verbose <- 0
+  my_verbose <- 1
   my_batch_size <- 100
 
   # Custom parameters using nn2poly.tools:
@@ -227,10 +242,10 @@ porque es la softmax.
 En este caso parece que en la segunda capa es dond ehay mas fallo.
 
 ```{r potentials}
-# plot_taylor_and_synpatic_potentials(data = train,
-#                                     weights_list = nn_weights,
-#                                     af_string_list = af_string_list,
-#                                     q_taylor_vector = q_taylor_vector)
+plot_taylor_and_synpatic_potentials(data = train,
+                                    weights_list = nn_weights,
+                                    af_string_list = af_string_list,
+                                    q_taylor_vector = q_taylor_vector)
 ```
 
 
