@@ -1,0 +1,204 @@
+---
+title: "Figures - Covertype Dataset"
+author: "Pablo Morala"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+####################################
+# 1 - Load all needed packages and functions
+####################################
+library(nn2poly)
+library(nn2poly.tools)
+library(keras)
+library(tensorflow)
+library(cowplot)
+library(ggplot2)
+
+IEEE_width_inches <- 3.5
+my_width <- IEEE_width_inches
+
+my_seed <- 42
+set.seed(my_seed)
+tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results with keras
+```
+
+
+# Load results
+
+
+```{r}
+
+output1 = readRDS("data/Boston_performance_example")
+
+nn <- load_model_tf("Covertype_nn")
+
+probability_model <- keras_model_sequential() %>%
+  nn() %>%
+  layer_activation_softmax() %>%
+  layer_lambda(k_argmax)
+
+probability_model_2 <- keras_model_sequential() %>%
+  layer_activation_softmax() %>%
+  layer_lambda(k_argmax)
+
+```
+
+
+
+
+```{r}
+
+
+# Obtain the predicted values with the NN to compare them
+prediction_NN <- predict(probability_model, test_x)
+prediction_NN_b <- predict(nn, test_x)
+
+# Create a confusion matrix
+cm <- caret::confusionMatrix(as.factor(prediction_NN), as.factor(test_y))
+cm
+
+
+cm <- caret::confusionMatrix(as.factor(prediction_NN), as.factor(nueva))
+cm
+```
+
+
+```{r}
+
+
+
+
+plot_performance <- cowplot::plot_grid(output1$plot_NN_performance, output1$plot_PR_vs_NN + ggplot2::labs(x = "Predicted Y with polynomial"), labels = c("A", "B"), scale = 0.9, label_size = 10)
+
+plot_performance
+
+
+```
+
+
+
+```{r}
+# Save the plot in temporal file
+setEPS()
+postscript("temporal/fig_Boston_NN_performance.eps", width = 2*my_width, height = 1*my_width)
+plot_performance
+dev.off()
+
+# Save as pdf as to avoid problems in arxiv
+pdf(file="temporal/fig_Boston_NN_performance.pdf", width = 2*my_width, height = 1*my_width)
+plot_performance
+dev.off()
+```
+
+
+
+# 10 NNs and average coeffs.
+
+
+```{r}
+simulations = readRDS("data/Boston-simulations-multiple-nn-10")
+```
+
+
+Create Df for other plots:
+
+The 20 selected are not the same in all the cases, and not same order. So maybe compute mean 
+
+```{r}
+
+
+n_sims <- length(simulations)
+
+string_labels <- rep("0",length(simulations[[1]]$labels))
+for (i in 1:length(simulations[[1]]$labels)) {
+    # Create the label as a string of the form "l_1 l_2 ... l_t"
+    string_labels[i] <- paste(as.character(simulations[[1]]$labels[[i]]), collapse = ",")
+}
+
+M <- matrix(1, n_sims, length(simulations[[1]]$labels))
+
+colnames(M) <- string_labels
+
+for (sim in 1:n_sims){
+  coefs <- simulations[[sim]]$coeffs
+  
+  M[sim, ] <- coefs
+}
+
+M <- as.data.frame(M)
+
+
+
+# perform the mean to obtain the order using the mean:
+aux_total <- sort(abs(colMeans(M)),decreasing = TRUE, index.return = TRUE)
+aux <- aux_total$x[1:20]
+aux_index <- aux_total$ix[1:20]
+
+
+df <- matrix(aux, nrow = 1)
+
+aux_sign <- sign(colMeans(M))[aux_index]
+ 
+df <- rbind(df,aux_sign)
+colnames(df) <- names(aux)
+rownames(df) <- c("mean","sign")
+
+df <- as.data.frame(df)
+
+df
+# We need to precompute the "error" for the graph. In this case we will use standard deviation:
+
+
+library(dplyr)
+M_sd <- M %>% summarise_if(is.numeric, sd)
+
+my_sd <- as.matrix(M_sd[,names(aux)])
+
+my_sd <- as.vector(my_sd)
+
+
+
+data <- data.frame(
+  name=names(aux),
+  Sign = as.factor(aux_sign),
+  value=unname(aux),
+  sd=my_sd
+)
+
+
+```
+
+```{r}
+# Plot: 
+plot_error_bars <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=Sign)) +
+    geom_bar( stat="identity", colour = "black",  alpha=1) +
+    geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.3, colour="black", alpha=0.9, size=1.3) + 
+    cowplot::theme_half_open()+
+    labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(legend.position = c(0.5, 0.8), legend.direction = "horizontal") +
+    labs(fill = "Coefficient sign")
+    
+
+plot_error_bars
+```
+
+
+
+```{r}
+# Save as pdf as eps had problems with the error bars
+pdf(file="temporal/fig_Boston_barplot.pdf", width = 2*my_width, height = 1.5*my_width)
+plot_error_bars
+dev.off()
+```
+
+
+
+
+
+
+
+
