@@ -33,7 +33,7 @@ tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results wi
 
 output1 = readRDS("data/Boston_performance_example")
 
-nn <- load_model_tf("Covertype_nn")
+nn <- load_model_tf("temporal/Covertype_nn")
 
 probability_model <- keras_model_sequential() %>%
   nn() %>%
@@ -45,6 +45,10 @@ probability_model_2 <- keras_model_sequential() %>%
   layer_lambda(k_argmax)
 
 ```
+
+
+
+
 
 
 
@@ -64,6 +68,15 @@ cm
 cm <- caret::confusionMatrix(as.factor(prediction_NN), as.factor(nueva))
 cm
 ```
+
+
+
+
+Comparing max 3 y 2
+```{r}
+
+```
+
 
 
 ```{r}
