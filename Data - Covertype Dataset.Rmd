@@ -387,11 +387,9 @@ Save the results:
 
 output <- vector(mode = "list", length = 0)
   output$MSE_per_class <- MSE_per_class
-  output$diag_plot <- diag_plot
   output$test_y <- test_y
   output$test_x <- test_x
-  output$plot_taylor <- plot_taylor
-  output$final_poly <- final_poly
+  output$final_poly <- final_poly2
   output$prediction_poly_matrix <- prediction_poly_matrix
   output$prediction_poly_class <- prediction_poly_class
   output$prediction_NN_class <- prediction_NN_class
