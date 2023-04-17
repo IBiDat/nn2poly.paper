@@ -265,7 +265,7 @@ n_test <- length(test_y)
 MSE_per_class <- vector(mode = "numeric", length(n_class))
 for (k in 1:n_class){
   
-  MSE_per_class[k] <- sum((prediction_NN_linear[,k] - prediction_poly_matrix[k,])^2) / n_test
+  MSE_per_class[k] <- sum((prediction_NN[,k] - prediction_poly_matrix[k,])^2) / n_test
   
 }
 
@@ -390,9 +390,12 @@ output <- vector(mode = "list", length = 0)
   output$diag_plot <- diag_plot
   output$test_y <- test_y
   output$test_x <- test_x
-  output$plot_history <- plot_history
   output$plot_taylor <- plot_taylor
   output$final_poly <- final_poly
+  output$prediction_poly_matrix <- prediction_poly_matrix
+  output$prediction_poly_class <- prediction_poly_class
+  output$prediction_NN_class <- prediction_NN_class
+  output$prediction_NN <- prediction_NN
   output$other_parameters <- other_parameters
   output$keras_parameters <- keras_parameters
   
@@ -402,7 +405,7 @@ saveRDS(output, file = "temporal/Covertype_max_Q_2_results")
 
 
 
-
+  
 
 
 
