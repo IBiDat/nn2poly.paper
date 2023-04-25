@@ -188,7 +188,7 @@ all_layers_coeffs <- nn2poly_algorithm(
   weights_list = nn_weights,
   af_string_list = af_string_list,
   q_taylor_vector = q_taylor_vector,
-  forced_max_Q = 2
+  forced_max_Q = 1
 )
 
 final_poly <- all_layers_coeffs[[length(all_layers_coeffs)]]
@@ -389,7 +389,7 @@ output <- vector(mode = "list", length = 0)
   output$MSE_per_class <- MSE_per_class
   output$test_y <- test_y
   output$test_x <- test_x
-  output$final_poly <- final_poly2
+  output$final_poly <- final_poly
   output$prediction_poly_matrix <- prediction_poly_matrix
   output$prediction_poly_class <- prediction_poly_class
   output$prediction_NN_class <- prediction_NN_class
@@ -397,7 +397,7 @@ output <- vector(mode = "list", length = 0)
   output$other_parameters <- other_parameters
   output$keras_parameters <- keras_parameters
   
-saveRDS(output, file = "temporal/Covertype_max_Q_2_results")
+saveRDS(output, file = "temporal/Covertype_max_Q_1_results")
 
 ```
 
