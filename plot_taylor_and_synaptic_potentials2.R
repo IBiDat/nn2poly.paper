@@ -73,7 +73,7 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
     
     # Depending on the function we need to obtain an adequate interval:
     if (af_string_list[[k]] == "tanh") {
-      taylor_interval <- 1.5
+      taylor_interval <- 1.1
     } else if (af_string_list[[k]] == "sigmoid") {
       taylor_interval <- 5
     } else if (af_string_list[[k]] == "softplus") {
@@ -83,18 +83,10 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
     # Create the x values for the Taylor plot
     x <- seq(-taylor_interval, taylor_interval, length.out = 1000)
     
-    # tolerance predefined to be 0.1
-    tol <- 0.1
     
     # create data frame and create an empty plot with only the density of those values
     df.density <- as.data.frame(synaptic_potentials_vectorized)
-    names(df.density) <- c("x")
-    
-    plot.density <- ggplot2::ggplot(df.density) +
-      ggplot2::aes(x = x, y = ..scaled..) +
-      ggplot2::geom_density(linetype = "dashed") +
-      ggplot2::xlim(x[1], x[length(x)]) +
-      ggplot2::theme_void()
+    names(df.density) <- c("value")
     
     #### Taylor graph ######
     
@@ -106,28 +98,41 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
     # compute the error as the absolute value of the difference
     error <- abs(yf - yp)
     
-    # get points to place error bars for error <= tol
-    ind <- which(error <= tol)
-    error1 <- x[ind[1]]
-    error2 <- x[ind[length(ind)]]
-    
     # Now we create the Taylor plot and add the density behind it.
     df.plot <- data.frame(x, yf, yp, error)
     
-    plot.Taylor <- ggplot2::ggplot() +
-      ggplot2::geom_line(data = df.plot, ggplot2::aes(x, yf)) +
-      ggplot2::geom_line(data = df.plot, ggplot2::aes(x, yp), color = "red") +
-      ggplot2::geom_line(data = df.plot, ggplot2::aes(x, error), color = "blue") +
-      ggplot2::geom_hline(yintercept = 0, color = "gray", linetype = "dashed") +
-      ggplot2::labs(x = "x") +
-      ggplot2::labs(y = "y") +
-      ggplot2::geom_vline(xintercept = error1, color = "gray", linetype = "dashed") +
-      ggplot2::geom_vline(xintercept = error2, color = "gray", linetype = "dashed") +
-      ggplot2::annotation_custom(ggplot2::ggplotGrob(plot.density), ymin = 0, ymax = 0.5) +
-      ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size = 10)) +
-      ggplot2::theme(axis.text = ggplot2::element_text(size = 10), axis.title = ggplot2::element_text(size = 10))
+    plot.taylor.simple <- ggplot() +
+      geom_line(data = df.plot, aes(x, yf, color = "black")) +
+      # This line is only used to add the density color in the legend, and then
+      # covered by the red line.
+      geom_line(data = df.plot, aes(x, yp, color ="darkgreen")) +
+      geom_line(data = df.plot, aes(x, yp, color ="red")) +
+      geom_line(data = df.plot, aes(x, error, color = "blue")) +
+      geom_hline(yintercept = 0, color = "gray", linetype = "dashed") +
+      labs(x = "x") +
+      labs(y = "y") +
+      xlim(-1, 1) +
+      theme(plot.title = element_text(hjust = 0.5, size = 10)) +
+      theme(axis.text = element_text(size = 10), axis.title = element_text(size = 10)) +
+      scale_color_identity(name = "Legend",
+                           breaks = c("black", "red", "blue", "darkgreen"),
+                           labels = c("True function","Taylor approximation", "Error", "Activation potentials density"),
+                           guide = "legend") +
+      theme_minimal()
     
-    plot.Taylor
+    # Using axis_canvas
+    xdens4 <- axis_canvas(plot.taylor.simple, axis = "x") +
+      xlim(-1, 1) +
+      geom_density(data = df.density,
+                   aes(x = value, y = after_stat(density)+1),
+                   color = "darkgreen",
+                   fill = "lightgreen", trim=TRUE) +
+      scale_y_log10() +
+      theme_void()
+    
+    plot.Taylor <- wrap_plots(xdens4, plot.taylor.simple, ncol=1, heights=c(0.1, 0.9))
+    
+    
     
     plots_list[[k]] <- plot.Taylor
   }

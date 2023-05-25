@@ -242,18 +242,13 @@ perform_example_from_train_test<- function(train,
     theme_half_open()
   
   # Plot the taylor expansion at each layer:
-  plot_taylor <- plot_taylor_and_synpatic_potentials2(
+  plot_taylor <- plot_taylor_and_synpatic_potentials3(
     data = train,
     weights_list = nn_weights,
     af_string_list = af_string_list,
     q_taylor_vector = q_taylor_vector,
     forced_max_Q = forced_max_Q
   )
-
-  for (i in 1:length(plot_taylor)){
-    plot_taylor[[i]] <- plot_taylor[[i]] +
-      theme_half_open()
-  }
   
   output <- vector(mode = "list", length = 0)
   output$MSE_NN_vs_poly <- MSE_NN_vs_poly
@@ -263,6 +258,8 @@ perform_example_from_train_test<- function(train,
   output$plot_taylor <- plot_taylor
   output$plot_history <- plot_history
   output$final_poly <- final_poly
+  output$train_x <- train_x
+  
   
   return(output)
 }
@@ -309,7 +306,7 @@ example1
 ```{r}
 # Remove history  plot as it is not used in the Figures
 example1$plot_history <- NULL
-saveRDS(example1,"temporal/nn_example_softplus_l1")
+saveRDS(example1,"temporal/nn_performance_example_l1")
 ```
 
 

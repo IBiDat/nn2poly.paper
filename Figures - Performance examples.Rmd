@@ -32,7 +32,7 @@ In this Rmd file we are going to plot the figures from the simulations included 
 # Example 1 - Performance
 
 ```{r}
-example1 <- readRDS("data/nn_example_softplus_l1")
+example1 <- readRDS("temporal/nn_performance_example_l1")
 ```
 
 ```{r}
@@ -41,13 +41,7 @@ plot.example <- cowplot::plot_grid(example1$plot_NN_performance, example1$plot_P
 
 plot.example
 
-
-setEPS()
-postscript("temporal/fig_performance_l1.eps", width = 2*my_width, height = 1*my_width)
-plot.example
-dev.off()
-
-# Save as pdf as to avoid problems in arxiv
+# Save as pdf
 pdf(file="temporal/fig_performance_l1.pdf", width = 2*my_width, height = 1*my_width)
 plot.example
 dev.off()
@@ -61,7 +55,7 @@ dev.off()
 # Example 2 - Performance
 
 ```{r}
-example2 <- readRDS("data/nn_performance_example_nc")
+example2 <- readRDS("temporal/nn_performance_example_nc")
 ```
 
 ```{r}
@@ -70,12 +64,7 @@ plot.example <- cowplot::plot_grid(example2$plot_NN_performance, example2$plot_P
 
 plot.example
 
-setEPS()
-postscript("temporal/fig_performance_nc.eps", width = 2*my_width, height = 1*my_width)
-plot.example
-dev.off()
-
-# Save as pdf as to avoid problems in arxiv
+# Save as pdf
 pdf(file="temporal/fig_performance_nc.pdf", width = 2*my_width, height = 1*my_width)
 plot.example
 dev.off()
@@ -87,19 +76,34 @@ dev.off()
 # Taylor layers
 
 ```{r}
-p1 <- example1$plot_taylor[[1]] + ggtitle('Layer 1') + theme(plot.title = element_text(size = 12, face = "plain"))
-p2 <- example1$plot_taylor[[2]] + ggtitle('Layer 2') + theme(plot.title = element_text(size = 12, face = "plain"))
-p3 <- example1$plot_taylor[[3]] + ggtitle('Layer 3') + theme(plot.title = element_text(size = 12, face = "plain"))
+p1 <- example1$plot_taylor[[1]] 
+# + ggtitle('Layer 1') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
+p2 <- example1$plot_taylor[[2]] 
+# + ggtitle('Layer 2') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
+p3 <- example1$plot_taylor[[3]] 
+# + ggtitle('Layer 3') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
 
-p4 <- example2$plot_taylor[[1]] + ggtitle('Layer 1') + theme(plot.title = element_text(size = 12, face = "plain"))
-p5 <- example2$plot_taylor[[2]] + ggtitle('Layer 2') + theme(plot.title = element_text(size = 12, face = "plain"))
-p6 <- example2$plot_taylor[[3]] + ggtitle('Layer 3') + theme(plot.title = element_text(size = 12, face = "plain"))
+p4 <- example2$plot_taylor[[1]] 
+# + ggtitle('Layer 1') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
+p5 <- example2$plot_taylor[[2]] 
+# + ggtitle('Layer 2') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
+p6 <- example2$plot_taylor[[3]] 
+# + ggtitle('Layer 3') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
 ```
 
 ```{r}
-plot_taylor_final <- ( p1 / p2 / p3) | (p4 / p5 / p6 )
+plot_taylor_final <- ( p1 / p2 / p3) | (p4 / p5 / p6 )  +
+  theme(legend.position = "bottom")
 
-plot_taylor_final
+plot_taylor_final 
+
+plot_taylor_final2 <- ggpubr::ggarrange(p1, p4, p2, p5, p3, p6, ncol=2, nrow=3, common.legend = TRUE, legend="bottom")
+
+
+plot_taylor_final2
+
+plot_taylor_final3 <- wrap_plots(wp, wp, wp, wp, wp, wp, ncol=2) + plot_layout(guides="collect")
+plot_taylor_final3
 ```
 
 
@@ -107,16 +111,110 @@ plot_taylor_final
 
 ```{r}
 
-setEPS()
-postscript("temporal/fig_taylor_layers.eps", width = 4*my_width, height =2*my_width)
-plot_taylor_final
-dev.off()
 
-# Save as pdf as to avoid problems in arxiv
+# Save as pdf
 pdf(file="temporal/fig_taylor_layers.pdf", width = 4*my_width, height = 2*my_width)
-plot_taylor_final
+plot_taylor_final2
 dev.off()
 
 ```
 
+
+
+
+# Coefficients plot example 1 NN with 10 repetitions
+
+
+
+```{r}
+
+simulations <- readRDS("data/nn_performance_example_10_repetitions")
+
+n_sims <- length(simulations)
+
+string_labels <- rep("0",length(simulations[[1]]$labels))
+for (i in 1:length(simulations[[1]]$labels)) {
+    # Create the label as a string of the form "l_1 l_2 ... l_t"
+    string_labels[i] <- paste(as.character(simulations[[1]]$labels[[i]]), collapse = ",")
+}
+
+M <- matrix(1, n_sims, length(simulations[[1]]$labels))
+
+colnames(M) <- string_labels
+
+for (sim in 1:n_sims){
+  coefs <- simulations[[sim]]$values
+  
+  M[sim, ] <- coefs
+}
+
+M <- as.data.frame(M)
+
+
+n_important <- 10
+# perform the mean to obtain the order using the mean:
+aux_total <- sort(abs(colMeans(M)),decreasing = TRUE, index.return = TRUE)
+aux <- aux_total$x[1:n_important]
+aux_index <- aux_total$ix[1:n_important]
+
+
+df <- matrix(aux, nrow = 1)
+
+aux_sign <- sign(colMeans(M))[aux_index]
+ 
+df <- rbind(df,aux_sign)
+colnames(df) <- names(aux)
+rownames(df) <- c("mean","sign")
+
+df <- as.data.frame(df)
+
+df
+# We need to precompute the "error" for the graph. In this case we will use standard deviation:
+
+
+library(dplyr)
+M_sd <- M %>% summarise_if(is.numeric, sd)
+
+my_sd <- as.matrix(M_sd[,names(aux)])
+
+my_sd <- as.vector(my_sd)
+
+
+
+data <- data.frame(
+  name=names(aux),
+  Sign = as.factor(aux_sign),
+  value=unname(aux),
+  sd=my_sd
+)
+
+
+```
+
+
+
+
+```{r}
+# Plot: 
+plot_error_bars <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=Sign)) +
+    geom_bar( stat="identity", colour = "black",  alpha=1) +
+    geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.3, colour="black", alpha=0.9, size=1.3) + 
+    cowplot::theme_half_open()+
+    scale_fill_manual(values = c("#F8766D","#00BA38"), labels = c("-","+"))+
+    labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(legend.position = c(0.8, 0.8), legend.direction = "vertical") +
+    labs(fill = "Sign")
+    
+
+plot_error_bars
+```
+
+
+```{r}
+# Save as pdf
+pdf(file="temporal/fig_coeffs_example1.pdf", width = 1.5*my_width, height = 1*my_width)
+plot_error_bars
+dev.off()
+```
 
