@@ -5,7 +5,7 @@
 
 library(ggplot2)
 library(cowplot)
-library(viridis)
+library(ggsci)
 library(patchwork)
 IEEE_width_inches <- 3.5
 my_width <- IEEE_width_inches
@@ -74,6 +74,7 @@ plot1 <- ggplot(df_NN_vs_poly, aes(x = Layers, y = MSE, fill = Act.Function)) +
   labs(fill = "Activation\n Function") +
   xlab("Number of hidden layers") +
   scale_y_continuous("MSE between NN and obtained PR", trans = "log10")+
+  scale_fill_jco() +
   theme_half_open() +
   background_grid(major = "y")
 
@@ -86,6 +87,7 @@ plot2 <- ggplot(df_NN_vs_original, aes(x = Layers, y = MSE, fill = Act.Function)
   labs(fill = "Activation\n Function") +
   xlab("Number of hidden layers") +
   scale_y_continuous("MSE between NN and original Y", trans = "log10")+
+  scale_fill_jco() +
   theme_half_open() +
   background_grid(major = "y")
 
@@ -94,12 +96,6 @@ plot2
 plotfinal <- plot1 + plot2 + plot_layout(guides = 'collect')
 plotfinal
 
-
-# Save the plot in temporal file
-setEPS()
-postscript("temporal/fig_MSE.eps", width = 4*my_width, height =1.5*my_width)
-plotfinal
-dev.off()
 
 # Save as pdf as to avoid problems in arxiv
 pdf(file="temporal/fig_MSE.pdf", width = 4*my_width, height = 1.5*my_width)

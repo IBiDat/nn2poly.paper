@@ -242,12 +242,13 @@ perform_example_from_train_test<- function(train,
     theme_half_open()
   
   # Plot the taylor expansion at each layer:
-  plot_taylor <- plot_taylor_and_synpatic_potentials3(
+  plot_taylor <- plot_taylor_and_synpatic_potentials2(
     data = train,
     weights_list = nn_weights,
     af_string_list = af_string_list,
     q_taylor_vector = q_taylor_vector,
-    forced_max_Q = forced_max_Q
+    forced_max_Q = forced_max_Q,
+    my_max_norm
   )
   
   output <- vector(mode = "list", length = 0)

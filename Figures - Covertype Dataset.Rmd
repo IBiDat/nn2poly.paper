@@ -10,12 +10,21 @@ knitr::opts_chunk$set(echo = TRUE)
 ####################################
 # 1 - Load all needed packages and functions
 ####################################
+# core
 library(nn2poly)
 library(nn2poly.tools)
 library(keras)
 library(tensorflow)
-library(cowplot)
+
+#plots
 library(ggplot2)
+library(cowplot)
+library(viridis)
+library(patchwork)
+
+# Others
+library(tidytext)
+library(kableExtra)
 
 IEEE_width_inches <- 3.5
 my_width <- IEEE_width_inches
@@ -31,60 +40,106 @@ tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results wi
 
 ```{r}
 
-output2 = readRDS("temporal/Covertype_max_Q_2_results")
+output1 = readRDS("data/Covertype_max_Q_1_results")
 
-output3 = readRDS("temporal/Covertype_max_Q_3_results")
+output2 = readRDS("data/Covertype_max_Q_2_results")
 
-nn <- load_model_tf("temporal/Covertype_nn")
+output3 = readRDS("data/Covertype_max_Q_3_results")
 
-nn
 
-probability_nn <- keras_model_sequential() %>%
-  nn %>%
-  layer_activation_softmax() %>%
-  layer_lambda(k_argmax)
-
-probability_poly <- keras_model_sequential() %>%
-  layer_activation_softmax() %>%
-  layer_lambda(k_argmax)
-
-test_x <- output2$test_x
-test_y <- output2$test_y
-
+# polynomials
+final_poly1 <- output1$final_poly
 final_poly2 <- output2$final_poly
 final_poly3 <- output3$final_poly
 
-```
-
-
-
-# Obtain predictions:
-
-
-```{r}
-
-
 # Obtain the predicted values with the NN to compare them
-prediction_NN_class <- predict(probability_nn, test_x)
-prediction_NN <- predict(nn, test_x)
+prediction_NN_class <- output2$prediction_NN_class
+prediction_NN <- output2$prediction_NN
 
 # Predictions from both polynomials:
-prediction_poly2_matrix <- eval_poly(x = test_x, poly = final_poly2)
-prediction_poly2_class <- predict(probability_poly,t(prediction_poly2_matrix))
 
-prediction_poly3_matrix <- eval_poly(x = test_x, poly = final_poly3)
-prediction_poly3_class <- predict(probability_poly,t(prediction_poly3_matrix))
+prediction_poly1_matrix <- output1$prediction_poly_matrix
+prediction_poly1_class <- output1$prediction_poly_class
+
+prediction_poly2_matrix <- output2$prediction_poly_matrix
+prediction_poly2_class <- output2$prediction_poly_class
+
+
+prediction_poly3_matrix <- output3$prediction_poly_matrix
+prediction_poly3_class <- output3$prediction_poly_class
+
+test_y <-output2$test_y
+
+```
 
 
 
+# MSE before softmax activation
+
+We can obtain the MSE between NN predictions and both polynomial predictions:
+
+```{r}
+n_test <- length(test_y)
+n_class <- dim(final_poly2$values)[1]
+
+MSE_per_class1 <- vector(mode = "numeric", length(n_class))
+MSE_per_class2 <- vector(mode = "numeric", length(n_class))
+MSE_per_class3 <- vector(mode = "numeric", length(n_class))
+for (k in 1:n_class){
+  
+  MSE_per_class1[k] <- sum((prediction_NN[,k] - prediction_poly1_matrix[k,])^2) / n_test
+  MSE_per_class2[k] <- sum((prediction_NN[,k] - prediction_poly2_matrix[k,])^2) / n_test
+  MSE_per_class3[k] <- sum((prediction_NN[,k] - prediction_poly3_matrix[k,])^2) / n_test
+  
+}
+
+MSE_per_class1
+MSE_per_class2
+MSE_per_class3
+```
+Store results in dataframe to create a table:
+
+```{r}
+MSE_table <- data.frame(
+  type = 1:7,
+  MSE_1 = MSE_per_class1,
+  MSE_2 = MSE_per_class2,
+  MSE_3 = MSE_per_class3
+)
+
+MSE_table
+
+
+
+library(dplyr)
+MSE_table %>% mutate(across(where(is.numeric), ~ round(., 6)))
 ```
 
 
 ```{r}
-
+length(final_poly1$labels)
+length(final_poly2$labels)
+length(final_poly3$labels)
 ```
 
 
+
+Latex Table:
+
+```{r, results='asis'}
+MSE_table %>% mutate(across(where(is.numeric), ~ round(., 6))) %>%
+  kbl(
+    caption = "MSE between NN prediction and polynomial prediction for each forest type (previous to softmax)",
+    format = "latex",
+    col.names = c("Forest Type", "MSE 1st order order", "MSE 2nd order", "MSE 3rd order"),
+    align = "c"
+  )
+```
+
+
+
+
+# Confussion Matrix
 
 Confusion matrix for both polynomials compared with nn predictions and confusion matrix for nn predictions against original values.
 
@@ -92,6 +147,13 @@ Confusion matrix for both polynomials compared with nn predictions and confusion
 
 ```{r}
 
+# Confussion matrix between NN class prediction and polynomial class prediction
+cm <- caret::confusionMatrix(as.factor(prediction_NN_class), as.factor(test_y))
+cm
+
+# Confussion matrix between NN class prediction and polynomial class prediction
+cm1 <- caret::confusionMatrix(as.factor(prediction_NN_class), as.factor(prediction_poly1_class ))
+cm1
 
 # Confussion matrix between NN class prediction and polynomial class prediction
 cm2 <- caret::confusionMatrix(as.factor(prediction_NN_class), as.factor(prediction_poly2_class ))
@@ -102,241 +164,378 @@ cm3 <- caret::confusionMatrix(as.factor(prediction_NN_class), as.factor(predicti
 cm3
 
 
+cm4 <- caret::confusionMatrix(as.factor(prediction_poly2_class ),as.factor(test_y))
+cm4
+```
+
+```{r}
+cm1$overall
+cm2$overall
+cm3$overall
 ```
 
 
 
 
-We are going to save this confusion matrix data as a Latex Table
-
-
 ```{r}
-
+cm1$table
 ```
 
 
 
 
 
-Explore the polynomals:
-
-
-
-
 ```{r}
+M <- cm1$table
 
-
-n_sims <- 1
-
-string_labels <- rep("0",length())
-for (i in 1:length(simulations[[1]]$labels)) {
-    # Create the label as a string of the form "l_1 l_2 ... l_t"
-    string_labels[i] <- paste(as.character(simulations[[1]]$labels[[i]]), collapse = ",")
+str_vec <- vector()
+for (i in 1:nrow(M)){
+  Mrow <- M[i,]
+  str <- ""
+  for(j in 1:length(Mrow)){
+    str <- paste(str,"&")
+    str <- paste(str, Mrow[j])
+  }
+  str_vec[i] <- str
 }
 
-M <- matrix(1, n_sims, length(simulations[[1]]$labels))
+str_vec
+```
 
-colnames(M) <- string_labels
 
-for (sim in 1:n_sims){
-  coefs <- simulations[[sim]]$coeffs
+witht 
+
+
+
+Explore the polynomials:
+
+
+
+
+```{r}
+
+M <- final_poly1$values
+
+# For each row, we have a different polynomial so we need to plot them
+# separately
+
+n_important_coeffs <- 10
+plot_list <- list()
+
+for (r in 1:nrow(M)){
+  Mr <- M[r,]
+  aux_total <- sort(abs(Mr),decreasing = TRUE, index.return = TRUE)
+  aux_values <- aux_total$x[1:n_important_coeffs]
+  aux_index <- aux_total$ix[1:n_important_coeffs]
   
-  M[sim, ] <- coefs
+  # Obtain labels:
+  list_labels <- final_poly2$labels[aux_index]
+
+  string_labels <- rep("0",n_important_coeffs)
+  for (i in 1:n_important_coeffs) {
+    # Create the label as a string of the form "l_1 l_2 ... l_t"
+    string_labels[i] <- paste(as.character(list_labels[[i]]), collapse = ",")
+  }
+
+  aux_sign <- sign(Mr)[aux_index]
+  
+  data <- data.frame(
+    name=string_labels,
+    sign = as.factor(aux_sign),
+    value=aux_values
+  )
+  
+  # Plot: 
+  plot_important_coeffs <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=sign)) +
+      geom_bar(stat="identity", colour = "black",  alpha=1) +
+      cowplot::theme_half_open()+
+      scale_fill_manual(values = c("#F8766D","#00BA38"))+
+      labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+      theme(legend.position = c(0.5, 0.8), legend.direction = "horizontal") +
+      labs(fill = "Coefficient sign")
+  
+  plot_list[[r]] <- plot_important_coeffs
 }
 
-M <- as.data.frame(M)
+plot_list
+```
+
+
+# Combined plots:
+
+
+```{r}
+
+M <- final_poly1$values
+
+# For each row, we have a different polynomial so we need to plot them
+# separately
+
+n_important_coeffs <- 10
+
+all_df <- data.frame()
+
+for (r in 1:nrow(M)){
+  Mr <- M[r,]
+  aux_total <- sort(abs(Mr),decreasing = TRUE, index.return = TRUE)
+  aux_values <- aux_total$x[1:n_important_coeffs]
+  aux_index <- aux_total$ix[1:n_important_coeffs]
+  
+  # Obtain labels:
+  list_labels <- final_poly2$labels[aux_index]
+
+  string_labels <- rep("0",n_important_coeffs)
+  for (i in 1:n_important_coeffs) {
+    # Create the label as a string of the form "l_1 l_2 ... l_t"
+    string_labels[i] <- paste(as.character(list_labels[[i]]), collapse = ",")
+  }
+
+  aux_sign <- sign(Mr)[aux_index]
+  
+  df <- data.frame(
+    name=string_labels,
+    sign = as.factor(aux_sign),
+    value=aux_values,
+    type = r
+  )
+  
+  all_df <- rbind(all_df,df)
+}
+
+plot_all <- ggplot(all_df, aes(x=reorder_within(x = name, by = -value, within = type), y=value, fill=sign)) +
+      geom_bar(stat="identity", colour = "black",  alpha=1) +
+      scale_x_reordered() +
+      facet_wrap(~type, scales = "free_x") +
+      cowplot::theme_half_open() +
+      labs(y = "Coefficient (absolute) values", x = "Variables or interactions") +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+      scale_fill_manual(values = c("#F8766D","#00BA38"), labels = c("-","+"))+
+      theme(legend.position = c(1, 0), legend.direction = "horizontal", legend.justification = c(1, 0)) +
+      labs(fill = "Sign")
+
+
+plot_all
+
+```
 
 
 
-# perform the mean to obtain the order using the mean:
-aux_total <- sort(abs(colMeans(M)),decreasing = TRUE, index.return = TRUE)
-aux <- aux_total$x[1:20]
-aux_index <- aux_total$ix[1:20]
 
 
-df <- matrix(aux, nrow = 1)
 
-aux_sign <- sign(colMeans(M))[aux_index]
+Podmeos ver que interacciones no aparecen aun, hay demasiadas variables como para que en los 20 primeros salgan interacciones. Podemos hacer otro bucle que en vez de generar plots, generemos una tabla o simplemente ver las 10 primeras veces que sale una interaccion? algo para comparar las de orden 3 con irden 2?
+
+
+
+
+Sacar lista de 3 coeffs mas importantes, y su signifcado. Ver cada tipo de bosque y su relacion?
+
+
+```{r}
+
+
+n_important_coeffs <- 4
+info_list <- list()
+
+for (r in 1:nrow(M)){
+  Mr <- M[r,]
+  aux_total <- sort(abs(Mr),decreasing = TRUE, index.return = TRUE)
+  aux_values <- aux_total$x[1:n_important_coeffs]
+  aux_index <- aux_total$ix[1:n_important_coeffs]
+  
+  # Obtain labels:
+  list_labels <- final_poly2$labels[aux_index]
+
+  string_labels <- rep("0",n_important_coeffs)
+  for (i in 1:n_important_coeffs) {
+    # Create the label as a string of the form "l_1 l_2 ... l_t"
+    string_labels[i] <- paste(as.character(list_labels[[i]]), collapse = ",")
+  }
+
+  aux_sign <- sign(Mr)[aux_index]
+  
+  data <- data.frame(
+    name=string_labels,
+    sign = as.factor(aux_sign),
+    value=aux_values
+  )
+  
+  info_list[[r]] <- data
+}
+
+```
+
+info variables
+
+
+Name                                     Data Type    Measurement                       Description
+
+1 Elevation                               quantitative    meters                       Elevation in meters
+2 Aspect                                  quantitative    azimuth                      Aspect in degrees azimuth
+3 Slope                                   quantitative    degrees                      Slope in degrees
+4 Horizontal_Distance_To_Hydrology        quantitative    meters                       Horz Dist to nearest surface water features
+5 Vertical_Distance_To_Hydrology          quantitative    meters                       Vert Dist to nearest surface water features
+6 Horizontal_Distance_To_Roadways         quantitative    meters                       Horz Dist to nearest roadway
+7 Hillshade_9am                           quantitative    0 to 255 index               Hillshade index at 9am, summer solstice
+8 Hillshade_Noon                          quantitative    0 to 255 index               Hillshade index at noon, summer soltice
+9 Hillshade_3pm                           quantitative    0 to 255 index               Hillshade index at 3pm, summer solstice
+10 Horizontal_Distance_To_Fire_Points      quantitative    meters                       Horz Dist to nearest wildfire ignition points
+11-14 Wilderness_Area (4 binary columns)      qualitative     0 (absence) or 1 (presence)  Wilderness area designation
+15- 54 Soil_Type (40 binary columns)           qualitative     0 (absence) or 1 (presence)  Soil Type designation
+55 Cover_Type (7 types)                    integer         1 to 7                       Forest Cover Type designation
+
+
+
+51: 37	   8708		Rock outcrop - Cryumbrepts - Cryorthents complex, extremely stony.
+
+
+
+
+Si vamos tipo a tipo:
+
+Covertype 1:
+1 -- Spruce/Fir
+https://en.wikipedia.org/wiki/Spruce%E2%80%93fir_forests
+Montañas canadienses, altura tiene sentido
+
+Most important variables: 
++1 - Elevation
+-8 - Hillshade Noon
+-4 - Horizontal Distance to Hydrology
+
+
+Covertype 2:
+2 -- Lodgepole Pine
+https://en.wikipedia.org/wiki/Pinus_contorta
+It is common near the ocean shore and in dry montane forests to the subalpine, but is rare in lowland rain forests.
+Distancia a agua positiva tiene sentido, supone  zonas mas secas
+
+Most important variables: 
++8 - Hillshade Noon
++3 - Slope
++4 - Horizontal Distance to Hydrology
+
+
+Covertype 3:
+3 -- Ponderosa Pine
+https://en.wikipedia.org/wiki/Pinus_ponderosa
+piedemonte y en los picos de mediana altura, de ahi negativo con altura 
+ In its Northern limits, it only grows below 4,300 feet (1,300 m) elevation, but is most common below 2,600 feet (800 m).
+ adapted to dry, fire-affected areas, often appears on the edges of deserts 
+ positivo en distancia a agua
+
+Most important variables: 
+-1 - Elevation
++8 - Hillshade Noon
++4 - Horizontal Distance to Hydrology
+
+Covertype 4:
+4 -- Cottonwood/Willow
+https://en.wikipedia.org/wiki/Populus_deltoides
+Needs bare soil and full sun. Hillshade Noon suppne que le da el sol bien por la mañana?? 
+Near rivers
+No encuentro nada sobre altitud.
+
+
+Por el mapa parece que la Rawah  Wilderness no encaja con la zona de esta planta, por eso cuadra negativo?
+
+Most important variables: 
+-1 - Elevation
++8 - Hillshade Noon
+-11 - Rawah Wilderness Area https://en.wikipedia.org/wiki/Rawah_Wilderness
+
+Covertype 5:
+5 -- Aspen
+https://en.wikipedia.org/wiki/Aspen
+high-altitude areas such as mountains or high plains . PROBLEMA CON ELEVATION NEGATIVA
+no les viene bien la sombra (-9)
+Cultivarlos tiene bajo coste por lo que son bastante usados con fines comerciales (Cerca de carreteras??)
+
+Most important variables: 
+-1 - Elevation
+-6 - Horizontal_Distance_To_Roadways
++5 - Vertical_Distance_To_Hydrology
+-9 - Hillshade_3pm
+
+Covertype 6:
+6 -- Douglas-fir
+https://en.wikipedia.org/wiki/Douglas_fir
+From coast level to 1500 or 2000m , con lo cual elevation tiene sentido como negativo
+
+
+Most important variables: 
+-1 - Elevation
++6 - Horizontal_Distance_To_Roadways
+-3 - Slope
+
+
+Covertype 7:
+7 -- Krummholz
+https://en.wikipedia.org/wiki/Krummholz
+ deformed vegetation encountered in the subarctic and subalpine tree line landscapes, shaped by continual exposure to fierce, freezing winds.
+  trees can only survive where they are sheltered by rock formations (tiene sentido 51)
+  e highest peaks of the central and even the southern Appalachian Mountains (elevation positivo tiene sentido)
  
-df <- rbind(df,aux_sign)
-colnames(df) <- names(aux)
-rownames(df) <- c("mean","sign")
 
-df <- as.data.frame(df)
-
-df
-# We need to precompute the "error" for the graph. In this case we will use standard deviation:
+Most important variables: 
++1 - Elevation
++51 - 8708 Rock outcrop - Cryumbrepts - Cryorthents complex, extremely stony.
+-4 -  Horizontal Distance to Hydrology
 
 
-library(dplyr)
-M_sd <- M %>% summarise_if(is.numeric, sd)
+# Heatmap
 
-my_sd <- as.matrix(M_sd[,names(aux)])
-
-my_sd <- as.vector(my_sd)
-
-
-
-data <- data.frame(
-  name=names(aux),
-  Sign = as.factor(aux_sign),
-  value=unname(aux),
-  sd=my_sd
-)
-
-
-```
-
-```{r}
-# Plot: 
-plot_error_bars <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=Sign)) +
-    geom_bar( stat="identity", colour = "black",  alpha=1) +
-    geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.3, colour="black", alpha=0.9, size=1.3) + 
-    cowplot::theme_half_open()+
-    labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-    theme(legend.position = c(0.5, 0.8), legend.direction = "horizontal") +
-    labs(fill = "Coefficient sign")
-    
-
-plot_error_bars
-```
-
-
-
-
-
-
-
-
-
-
--------------------------------
-
+No se ve mucho porque elevation e intercept tienen valores mucho más altos que el resto de coeficientes. Separándolos sí se ve algo más.
 
 ```{r}
 
+poly_single_vars <- list()
+poly_single_vars$labels <- final_poly2$labels[1:55]
+poly_single_vars$values <- final_poly2$values[,1:55]
 
+# All single variables plot
 
+df <- data.frame(poly_single_vars$values[,])
 
-plot_performance <- cowplot::plot_grid(output1$plot_NN_performance, output1$plot_PR_vs_NN + ggplot2::labs(x = "Predicted Y with polynomial"), labels = c("A", "B"), scale = 0.9, label_size = 10)
+# Reshape the data
+df2 <- reshape2::melt(df)
 
-plot_performance
+df2$type <- rep(1:7,dim(df)[2])
 
+library(viridis)
+ggplot(df2, aes(variable, type, fill= value)) + 
+  geom_tile() +
+  scale_fill_viridis()
 
+# Plot without Elevation and intercept
+
+df <- data.frame(poly_single_vars$values[,3:55])
+
+# Reshape the data
+df2 <- reshape2::melt(df)
+
+df2$type <- rep(1:7,dim(df)[2])
+
+library(viridis)
+ggplot(df2, aes(variable, type, fill= value)) + 
+  geom_tile() +
+  scale_fill_viridis()
 ```
 
 
 
+
+
+
+
 ```{r}
-# Save the plot in temporal file
-setEPS()
-postscript("temporal/fig_Boston_NN_performance.eps", width = 2*my_width, height = 1*my_width)
-plot_performance
-dev.off()
 
 # Save as pdf as to avoid problems in arxiv
-pdf(file="temporal/fig_Boston_NN_performance.pdf", width = 2*my_width, height = 1*my_width)
-plot_performance
+pdf(file="temporal/fig_covertype_coeffs.pdf", width = 2*my_width, height = 2*my_width)
+plot_all
 dev.off()
 ```
-
-
-
-# 1 NNs and average coeffs.
-
-Create Df for other plots:
-
-The 20 selected are not the same in all the cases, and not same order. So maybe compute mean 
-
-```{r}
-
-
-n_sims <- length(simulations)
-
-string_labels <- rep("0",length(simulations[[1]]$labels))
-for (i in 1:length(simulations[[1]]$labels)) {
-    # Create the label as a string of the form "l_1 l_2 ... l_t"
-    string_labels[i] <- paste(as.character(simulations[[1]]$labels[[i]]), collapse = ",")
-}
-
-M <- matrix(1, n_sims, length(simulations[[1]]$labels))
-
-colnames(M) <- string_labels
-
-for (sim in 1:n_sims){
-  coefs <- simulations[[sim]]$coeffs
-  
-  M[sim, ] <- coefs
-}
-
-M <- as.data.frame(M)
-
-
-
-# perform the mean to obtain the order using the mean:
-aux_total <- sort(abs(colMeans(M)),decreasing = TRUE, index.return = TRUE)
-aux <- aux_total$x[1:20]
-aux_index <- aux_total$ix[1:20]
-
-
-df <- matrix(aux, nrow = 1)
-
-aux_sign <- sign(colMeans(M))[aux_index]
- 
-df <- rbind(df,aux_sign)
-colnames(df) <- names(aux)
-rownames(df) <- c("mean","sign")
-
-df <- as.data.frame(df)
-
-df
-# We need to precompute the "error" for the graph. In this case we will use standard deviation:
-
-
-library(dplyr)
-M_sd <- M %>% summarise_if(is.numeric, sd)
-
-my_sd <- as.matrix(M_sd[,names(aux)])
-
-my_sd <- as.vector(my_sd)
-
-
-
-data <- data.frame(
-  name=names(aux),
-  Sign = as.factor(aux_sign),
-  value=unname(aux),
-  sd=my_sd
-)
-
-
-```
-
-```{r}
-# Plot: 
-plot_error_bars <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=Sign)) +
-    geom_bar( stat="identity", colour = "black",  alpha=1) +
-    geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.3, colour="black", alpha=0.9, size=1.3) + 
-    cowplot::theme_half_open()+
-    labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-    theme(legend.position = c(0.5, 0.8), legend.direction = "horizontal") +
-    labs(fill = "Coefficient sign")
-    
-
-plot_error_bars
-```
-
-
-
-```{r}
-# Save as pdf as eps had problems with the error bars
-pdf(file="temporal/fig_Boston_barplot.pdf", width = 2*my_width, height = 1.5*my_width)
-plot_error_bars
-dev.off()
-```
-
 
 
 

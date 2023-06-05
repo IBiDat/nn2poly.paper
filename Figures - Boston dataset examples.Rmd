@@ -56,11 +56,6 @@ plot_performance
 
 
 ```{r}
-# Save the plot in temporal file
-setEPS()
-postscript("temporal/fig_Boston_NN_performance.eps", width = 2*my_width, height = 1*my_width)
-plot_performance
-dev.off()
 
 # Save as pdf as to avoid problems in arxiv
 pdf(file="temporal/fig_Boston_NN_performance.pdf", width = 2*my_width, height = 1*my_width)
@@ -152,10 +147,11 @@ plot_error_bars <- ggplot(data, aes(x=reorder(name, -value), y=value, fill=Sign)
     geom_bar( stat="identity", colour = "black",  alpha=1) +
     geom_errorbar( aes(x=name, ymin=value-sd, ymax=value+sd), width=0.3, colour="black", alpha=0.9, size=1.3) + 
     cowplot::theme_half_open()+
+    scale_fill_manual(values = c("#F8766D","#00BA38"), labels = c("-","+"))+
     labs(y = "Coefficient (absolute) values", x = "Variables or interactions")+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-    theme(legend.position = c(0.5, 0.8), legend.direction = "horizontal") +
-    labs(fill = "Coefficient sign")
+    theme(legend.position = c(0.8, 0.8), legend.direction = "vertical") +
+    labs(fill = "Sign")
     
 
 plot_error_bars

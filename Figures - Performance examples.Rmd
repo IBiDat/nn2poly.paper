@@ -77,7 +77,6 @@ dev.off()
 
 ```{r}
 p1 <- example1$plot_taylor[[1]] 
-# + ggtitle('Layer 1') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
 p2 <- example1$plot_taylor[[2]] 
 # + ggtitle('Layer 2') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
 p3 <- example1$plot_taylor[[3]] 
@@ -91,30 +90,24 @@ p6 <- example2$plot_taylor[[3]]
 # + ggtitle('Layer 3') + theme(plot.title = element_text(size = 12, face = "plain")) + theme(legend.position = "none")
 ```
 
-```{r}
-plot_taylor_final <- ( p1 / p2 / p3) | (p4 / p5 / p6 )  +
-  theme(legend.position = "bottom")
-
-plot_taylor_final 
-
-plot_taylor_final2 <- ggpubr::ggarrange(p1, p4, p2, p5, p3, p6, ncol=2, nrow=3, common.legend = TRUE, legend="bottom")
-
-
-plot_taylor_final2
-
-plot_taylor_final3 <- wrap_plots(wp, wp, wp, wp, wp, wp, ncol=2) + plot_layout(guides="collect")
-plot_taylor_final3
+```{r, warning=FALSE}
+plot_taylor_final <- wrap_plots(p1, p2, p3, p4, p5, p6, ncol=3) + 
+  plot_layout(guides="collect") &
+  theme(legend.position = "bottom") & 
+  scale_color_identity(name = "Legend",
+                       breaks = c("black", "red", "blue", "darkgreen"),
+                       labels = c("True function","Taylor approximation", "Error", "Activation potentials density (log(x+1) scaled)"),
+                       guide = "legend")
+plot_taylor_final
 ```
 
 
 
 
 ```{r}
-
-
 # Save as pdf
-pdf(file="temporal/fig_taylor_layers.pdf", width = 4*my_width, height = 2*my_width)
-plot_taylor_final2
+pdf(file="temporal/fig_taylor_layers.pdf", width = 3.6*my_width, height = 1.8*my_width)
+plot_taylor_final
 dev.off()
 
 ```
@@ -213,7 +206,7 @@ plot_error_bars
 
 ```{r}
 # Save as pdf
-pdf(file="temporal/fig_coeffs_example1.pdf", width = 1.5*my_width, height = 1*my_width)
+pdf(file="temporal/fig_coeffs_example1.pdf", width = 2*my_width, height = 1*my_width)
 plot_error_bars
 dev.off()
 ```

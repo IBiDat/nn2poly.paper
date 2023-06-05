@@ -6,7 +6,8 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
                                                 weights_list,
                                                 af_string_list,
                                                 q_taylor_vector,
-                                                forced_max_Q) {
+                                                forced_max_Q,
+                                                my_max_norm) {
   if (!requireNamespace("ggplot2", quietly = TRUE))
     stop("package 'ggplot2' is required for this functionality", call.=FALSE)
   
@@ -101,6 +102,13 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
     # Now we create the Taylor plot and add the density behind it.
     df.plot <- data.frame(x, yf, yp, error)
     
+    name_plot <- paste0("Layer ",k, ",")
+    if (my_max_norm[[1]]=="l1_norm"){
+      name_plot <- paste0(name_plot," constrained")
+    } else {
+      name_plot <- paste0(name_plot," no constraints")
+    }
+    
     plot.taylor.simple <- ggplot() +
       geom_line(data = df.plot, aes(x, yf, color = "black")) +
       # This line is only used to add the density color in the legend, and then
@@ -116,9 +124,11 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
       theme(axis.text = element_text(size = 10), axis.title = element_text(size = 10)) +
       scale_color_identity(name = "Legend",
                            breaks = c("black", "red", "blue", "darkgreen"),
-                           labels = c("True function","Taylor approximation", "Error", "Activation potentials density"),
+                           labels = c("True function","Taylor approximation", "Error", "Activation potentials density (log(x+1) scaled)"),
                            guide = "legend") +
-      theme_minimal()
+      theme_minimal() + labs(x=NULL, y=NULL)
+
+    
     
     # Using axis_canvas
     xdens4 <- axis_canvas(plot.taylor.simple, axis = "x") +
@@ -128,8 +138,10 @@ plot_taylor_and_synpatic_potentials2 <- function(data,
                    color = "darkgreen",
                    fill = "lightgreen", trim=TRUE) +
       scale_y_log10() +
-      theme_void()
-    
+      theme_void() +
+      ylab(name_plot) +
+      theme(axis.title.y=element_text(hjust = -1, angle=0, vjust=1,
+                                      margin = margin(r = -110)))
     plot.Taylor <- wrap_plots(xdens4, plot.taylor.simple, ncol=1, heights=c(0.1, 0.9))
     
     
