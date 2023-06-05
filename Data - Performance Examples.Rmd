@@ -21,7 +21,7 @@ library(patchwork)
 IEEE_width_inches <- 3.5
 my_width <- IEEE_width_inches
 
-my_seed <- 42
+my_seed <- 1
 set.seed(my_seed)
 tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results with keras
 ```
@@ -32,25 +32,52 @@ In this Rmd file we are going to show how to use NN2Poly in 2 different situatio
 
 # Data generation
 
-Data will be held the same in the following examples.    
-
+Data will be held the same in the following examples.  
 ```{r}
-source("data_generation.R")
-n_sample <- 500
-unif_range <- c(-10, 10)
-number_interactions <- 4
-error_var <- 0.1
-p <- 3
-q_original <- 2
+source("data_generation2.R")
+source("plot_taylor_and_synaptic_potentials2.R")
 ```
 
 
+Here we create the polynomial : $4x_1 - 3 x_2x_3$: 
+```{r}
+# Define the polynomial to be used in the desired form:
+original_polynomial <- list()
+original_polynomial$labels <- list(c(1), c(2,3))
+original_polynomial$values <- c(4,-3)
+```
+
+Then we generate the data:
 
 ```{r}
-# Data generation:
-data_generated <- data_generation(n_sample, p, q_original, unif_range, number_interactions = number_interactions, error_var)
-data <- data_generated$data
-original_betas <- data_generated$original_betas
+# Define number of variables p and sample n
+p <- 3
+n_sample <- 500
+
+data <- data_generation2(n_sample, p, original_polynomial, error_var = 0.1)
+
+head(data)
+```
+
+
+```{r}
+
+# Data scaling
+maxs <- apply(data, 2, max) 
+mins <- apply(data, 2, min) 
+data <- as.data.frame(scale(data, center = mins + (maxs - mins) / 2, scale = (maxs - mins) / 2))
+
+# Divide in train (0.75) and test (0.25)
+index <- sample(1:nrow(data), round(0.75 * nrow(data)))
+train <- data[index, ]
+test <- data[-index, ]
+
+train_x <- as.matrix(subset(train, select = -c(Y)))
+train_y <- as.matrix(train$Y)
+
+test_x <- as.matrix(subset(test, select = -c(Y)))
+test_y <- as.matrix(test$Y)
+
 
 # Scale the data in the desired interval and separate train and test
 scale_method <- "-1,1"
@@ -72,18 +99,37 @@ These parameters will also be held constant over the networks
 # keras hyperparameters
 my_loss <- "mse"
 my_metrics <- "mse"
-my_epochs <- 500000
-my_batch <- 100
+my_epochs <- 3000
+my_batch <- 50
 my_validation_split <- 0.2
 my_verbose <- 0
 
+# NN structure
+L <- 3
+h_neurons_at_each_layer <- 100
+af <- "tanh"
+my_optimizer <- optimizer_adam()
+# h neurons with 1 at the end for regression
+h_neurons_vector <- rep(h_neurons_at_each_layer,L)
+h_neurons_vector <- c(h_neurons_vector,1)
+# list with the af at each layer:
+af_string_list <- vector(mode = "list", length = L+1)
+for (i in 1:L){
+  af_string_list[i] <- af
+}
+# Add linear at the end so we have regression setting.
+af_string_list[L+1] <- "linear"
+
+# nn2poly hyperparameter
+forced_max_Q <- 3
+
+# q taylor with 1 at the end for regression
+q_taylor_at_each_layer <- 8 # We can set a high value as we are going
+# to limit it with a forced max Q
+q_taylor_vector <- rep(q_taylor_at_each_layer,L)
+q_taylor_vector <- c(q_taylor_vector,1)
 ```
 
-
-```{r}
-q_taylor_at_each_layer <- 5 # We can set a high value as we are going
-# to limit it with a forced max Q.
-```
 
 
 # Function to generate the desired graphs:
@@ -176,24 +222,17 @@ perform_example_from_train_test<- function(train,
   }
   
   # use the  nn2poly algorithm
-  coeffs <- nn2poly::nn2poly_algorithm(
+  all_layers_coeffs <- nn2poly::nn2poly_algorithm(
     weights_list = nn_weights,
     af_string_list = af_string_list,
     q_taylor_vector = q_taylor_vector,
-    forced_max_Q = forced_max_Q,
-    store_coeffs = FALSE
+    forced_max_Q = forced_max_Q
   )
   
-  labels <- coeffs[[length(coeffs)]][[1]]
-  coeffs <- coeffs[[length(coeffs)]][[2]]
+  final_poly <- all_layers_coeffs[[length(all_layers_coeffs)]]
   
-  # Obtain the predicted values for the test data with our polynomial
-  n_test <- length(test_y)
-  prediction_poly <- rep(0, n_test)
   
-  for (i in 1:n_test) {
-    prediction_poly[i] <- nn2poly::eval_poly(test[i, seq(p)], labels = labels, coeffs = coeffs)
-  }
+  prediction_poly <- as.vector(eval_poly(x = test_x, poly = final_poly))
     
   # MSE between NN and Poly
   MSE_NN_vs_poly <- sum((prediction_NN - prediction_poly)^2) / n_test
@@ -203,18 +242,15 @@ perform_example_from_train_test<- function(train,
     theme_half_open()
   
   # Plot the taylor expansion at each layer:
-  plot_taylor <- plot_taylor_and_synpatic_potentials(
+  plot_taylor <- plot_taylor_and_synpatic_potentials2(
     data = train,
     weights_list = nn_weights,
     af_string_list = af_string_list,
-    q_taylor_vector = q_taylor_vector
+    q_taylor_vector = q_taylor_vector,
+    forced_max_Q = forced_max_Q,
+    my_max_norm
   )
-
-  for (i in 1:length(plot_taylor)){
-    plot_taylor[[i]] <- plot_taylor[[i]] +
-      theme_half_open()
-  }
-
+  
   output <- vector(mode = "list", length = 0)
   output$MSE_NN_vs_poly <- MSE_NN_vs_poly
   output$MSE_NN_vs_original <- MSE_NN_vs_original
@@ -222,6 +258,9 @@ perform_example_from_train_test<- function(train,
   output$plot_PR_vs_NN <- plot_PR_vs_NN
   output$plot_taylor <- plot_taylor
   output$plot_history <- plot_history
+  output$final_poly <- final_poly
+  output$train_x <- train_x
+  
   
   return(output)
 }
@@ -234,35 +273,11 @@ perform_example_from_train_test<- function(train,
 # Example 1
 
 
-Softplus AF, l1-norm constraint, 3 hidden layers, 50 neurons per layer.
+Tanh AF, l1-norm constraint, 3 hidden layers, 50 neurons per layer.
 
 ```{r, warning=FALSE}
 
-L <- 3
-h_neurons_at_each_layer <- 50
-af <- "softplus"
 my_max_norm <- list("l1_norm", 1)
-my_optimizer <- optimizer_adam()
-forced_max_Q <- 3
-
-# q taylor with 1 at the end for regression
-q_taylor_vector <- rep(q_taylor_at_each_layer,L)
-q_taylor_vector <- c(q_taylor_vector,1)
-
-# h neurons with 1 at the end for regression
-h_neurons_vector <- rep(h_neurons_at_each_layer,L)
-h_neurons_vector <- c(h_neurons_vector,1)
-
-
-###### Create first the list with the af at each layer:
-af_string_list <- vector(mode = "list", length = L+1)
-for (i in 1:L){
-  af_string_list[i] <- af
-}
-# Add linear at the end so we have regression setting.
-af_string_list[L+1] <- "linear"
-
-
 
 example1 <- perform_example_from_train_test(
           train = train,
@@ -292,7 +307,7 @@ example1
 ```{r}
 # Remove history  plot as it is not used in the Figures
 example1$plot_history <- NULL
-saveRDS(example1,"temporal/nn_example_softplus_l1")
+saveRDS(example1,"temporal/nn_performance_example_l1")
 ```
 
 
@@ -300,38 +315,11 @@ saveRDS(example1,"temporal/nn_example_softplus_l1")
 # Example 2
 
 
-Softplus, no constraint, 3 hidden layers, 50 neurons per layer.
+Same as before, no constraints
 
 ```{r, warning=FALSE}
-my_seed <- 4242
-set.seed(my_seed)
-tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results with keras
 
-L <- 3
-h_neurons_at_each_layer <- 50
-af <- "softplus"
 my_max_norm <- list("no_constraint", 1)
-my_optimizer <- optimizer_adam()
-forced_max_Q <- 3
-my_epochs <- 1000
-
-# q taylor with 1 at the end for regression
-q_taylor_vector <- rep(q_taylor_at_each_layer,L)
-q_taylor_vector <- c(q_taylor_vector,1)
-
-# h neurons with 1 at the end for regression
-h_neurons_vector <- rep(h_neurons_at_each_layer,L)
-h_neurons_vector <- c(h_neurons_vector,1)
-
-
-###### Create first the list with the af at each layer:
-af_string_list <- vector(mode = "list", length = L+1)
-for (i in 1:L){
-  af_string_list[i] <- af
-}
-# Add linear at the end so we have regression setting.
-af_string_list[L+1] <- "linear"
-
 
 
 example2 <- perform_example_from_train_test(
@@ -362,5 +350,53 @@ example2
 # Remove history  plot as it is not used in the Figures
 example2$plot_history <- NULL
 saveRDS(example2,"temporal/nn_performance_example_nc")
+```
+
+
+
+# Repeating example 1, 10 diferent times to have average coefficients:
+
+
+```{r}
+my_max_norm <- list("l1_norm", 1)
+my_epochs <- 3000
+
+n_sims <- 10
+simulations <- vector(mode="list", length = n_sims)
+simulations_plot <- vector(mode="list", length = n_sims)
+
+for (sims in 1:n_sims){
+  print(sims)
+  result <- perform_example_from_train_test(
+          train = train,
+          test = test,
+          af_string_list = af_string_list,
+          h_neurons_vector = h_neurons_vector,
+          q_taylor_vector = q_taylor_vector,
+          forced_max_Q = forced_max_Q,
+          my_max_norm = my_max_norm,
+          my_optimizer = my_optimizer,
+          my_loss = my_loss,
+          my_metrics = my_metrics,
+          my_epochs = my_epochs,
+          my_batch = my_batch,
+          my_validation_split = my_validation_split,
+          my_verbose
+        )
+  
+  simulations[[sims]] <- result$final_poly
+  simulations_plot[[sims]] <- result$plot_PR_vs_NN
+}
+
+
+
+```
+
+
+
+```{r}
+# Remove history  plot as it is not used in the Figures
+simulations
+saveRDS(simulations,"temporal/nn_performance_example_10_repetitions")
 ```
 

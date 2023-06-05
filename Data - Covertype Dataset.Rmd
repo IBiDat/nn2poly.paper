@@ -1,0 +1,412 @@
+---
+title: "Data - Covertype Dataset"
+author: "Pablo Morala"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+####################################
+# 1 - Load all needed packages and functions
+####################################
+library(nn2poly)
+library(nn2poly.tools)
+library(keras)
+library(tensorflow)
+library(cowplot)
+library(ggplot2)
+
+IEEE_width_inches <- 3.5
+my_width <- IEEE_width_inches
+
+my_seed <- 42
+set.seed(my_seed)
+tensorflow::tf$random$set_seed(my_seed) # Needed to have reproducible results with keras
+```
+
+
+This document contains an example of use for NN2Poly applied to the Covertype Dataset (https://archive.ics.uci.edu/ml/datasets/covertype), which consists of a cartographic classification problem into 7 types of forest.
+
+- The variables are only cartographic and do not use any kind of remotely sensed data. 
+- Data not scaled
+- And contains binary columns (0 or 1) for qualitative variables
+  - 12 first, quantitative
+  - 13 to 54, binary variables
+  - 55, response variable
+
+# Data preparation
+
+```{r data-loading}
+# Load the data
+data_raw <- read.table("real-datasets/covertype/covtype.data.gz", sep = ",")
+
+head(data_raw)
+# names(data_raw)
+# summary(data_raw)
+
+# Define dimension p (number of predictor variables)
+p <- dim(data_raw)[2] - 1
+
+# Define objective classes
+n_class <- max(data_raw[,(p+1)])
+
+# Move objective classes from (1:7) to (0:6), needed for tensoflow
+data_raw[,(p+1)] <- data_raw[,(p+1)] - 1
+```
+
+```{r data-scaling}
+# Scale the data in the desired interval and separate train and test
+# Only the predictor variables are scaled, not the response as those will be
+# the different classes. Note that variable 55 is the response in this case.
+scale_method <- "-1,1"
+data_x_scaled <- scale_data(data_raw[,-(p+1)], scale_method)
+data_scaled <- cbind(data_x_scaled, data_raw[,(p+1)])
+
+my_train_proportion = 0.8
+# Now, rejoin with Y and divide in train and test
+aux <- divide_train_test(data_scaled, train_proportion = my_train_proportion)
+train <- aux$train
+test <- aux$test
+
+
+# Divide again in x and y to use in tensorflow and turn into matrix form
+train_x <- as.matrix(train[,-(p+1)])
+train_y <- as.matrix(train[,(p+1)])
+
+test_x <- as.matrix(test[,-(p+1)])
+test_y <- as.matrix(test[,(p+1)])
+```
+
+# Neural Network training
+
+First, we determine the model by defining its hyperparameters and structure:
+
+```{r hyperparams}
+# keras hyperparameters 
+  my_loss <- loss_sparse_categorical_crossentropy(from_logits = TRUE)
+  my_metrics <- "accuracy"
+  my_optimizer <- optimizer_adamax()
+  my_epochs <- 300
+  my_validation_split <- 0.2
+  my_verbose <- 0
+  my_batch_size <- 100
+
+  # Custom parameters using nn2poly.tools:
+  af_string_list <- list("tanh", "tanh", "tanh", "linear")
+  h_neurons_vector <- c(100, 100, 100, n_class) 
+  my_max_norm <- list("l1_norm",1)
+  
+```
+
+Then we build, compile and train.
+
+```{r nn-build}
+nn <- build_keras_model(p,
+    af_string_list,
+    h_neurons_vector,
+    my_max_norm)
+
+compile(nn,
+        loss = my_loss,
+        optimizer = my_optimizer,
+        metrics = my_metrics)
+
+history <- fit(nn,
+               train_x,
+               train_y,
+               verbose = my_verbose,
+               epochs = my_epochs,
+               validation_split = my_validation_split,
+               batch_size = my_batch_size
+)
+```
+
+
+```{r plot-history}
+plot_history <- plot(history)
+plot_history
+```
+
+The results from the previous model needs to be transformed into probabilities using softmax and then assigning a class based on the highest probability: 
+
+```{r probability-model}
+probability_nn <- keras_model_sequential() %>%
+  nn() %>%
+  layer_activation_softmax() %>%
+  layer_lambda(k_argmax)
+```
+
+We can then get a confusion matrix to see the results:
+
+```{r comparison-y-nn}
+# Obtain the predicted values with the NN to compare them
+prediction_NN_class <- predict(probability_nn, test_x)
+prediction_NN <- predict(nn, test_x)
+
+# Create a confusion matrix
+cm <- caret::confusionMatrix(as.factor(prediction_NN_class), as.factor(test_y))
+cm
+
+```
+
+
+## Obtaining the polynomial regression
+
+After the NN has been trained, using any chosen method by the user, the parameters have to be extracted and reshaped, if needed, to match the expected input of the function `nn2poly_algorithm()`. This input consists in the following objects:
+
+* `weights_list` A list of matrices with a weight matrix at each layer. The weights matrices should be of dimension ((1+input) * output) where the first row corresponds to the bias vector, and the rest of the rows correspond to each of the ordered vector weights associated to each input.
+* `af_string_list` A list of strings with the names of the activation functions at each layer.
+* `q_taylor_vector` A vector of integers containing the order of the Taylor expansion performed at each layer. If the output layer has a linear activation function, then the last value should be 1.
+
+Following the example of the NN that we created previously, we need to extract its weights and biases and reshape them. Particularly, the `keras` framework by default separates kernel weights matrices of dimension (input * output) and bias vectors (1 * output), so we need to add the bias as the first row of a matrix ((1+input) * output).
+
+
+```{r}
+keras_weights <- keras::get_weights(nn)
+
+n <- length(keras_weights)
+
+nn_weights <- keras_weights[1:(n-2)]
+
+nn_weights[[n-1]] <- rbind(keras_weights[[n]], keras_weights[[n-1]])
+
+
+```
+
+
+And finally the order of the Taylor approximation that we are going to choose is 3 at each hidden layer.
+
+```{r}
+q_taylor_vector <- c(8, 8, 8, 1) 
+```
+
+When the input is in the desired shape, the method can be applied finally:
+
+```{r}
+all_layers_coeffs <- nn2poly_algorithm(
+  weights_list = nn_weights,
+  af_string_list = af_string_list,
+  q_taylor_vector = q_taylor_vector,
+  forced_max_Q = 1
+)
+
+final_poly <- all_layers_coeffs[[length(all_layers_coeffs)]]
+```
+
+
+We can have a glimpse at how the coefficients of the pollynomial regression (PR) are stored.
+
+
+```{r}
+final_poly$values[,1:7]
+```
+
+
+## Visualising the results
+
+The obtained polynomial represents the neural network before including the softmax function adn computing the class assigned to each observation. Then, we need to define again a keras sequential model that includes the class computation form the polynomial output.
+
+```{r}
+# Obtain the predicted values for the test data with our Polynomial Regression
+prediction_poly_matrix <- eval_poly(x = test_x, poly = final_poly)
+
+# Define probability model with keras fro the polynomial outputs
+probability_poly <- keras_model_sequential() %>%
+  layer_activation_softmax() %>%
+  layer_lambda(k_argmax)
+
+# Class prediction with the polynomial outputs
+prediction_poly_class <- predict(probability_poly,t(prediction_poly_matrix))
+
+# Confussion matrix between NN class prediction and polynomial class prediction
+cm <- caret::confusionMatrix(as.factor(prediction_NN_class), as.factor(prediction_poly_class ))
+cm
+
+```
+
+
+We can also visualize how the activation potentials at each layer ar desitributed around 0, near the point chosen for the Taylor expansion.
+
+```{r potentials}
+# Sample the training points to reduce the number of points to be plotted.
+train_sample = train[(sample(nrow(train), size = 1000)), ]
+
+plot_taylor <- plot_taylor_and_synpatic_potentials(data = train_sample,
+                                    weights_list = nn_weights,
+                                    af_string_list = af_string_list,
+                                    q_taylor_vector = q_taylor_vector)
+
+plot_taylor
+```
+
+
+
+Furthermore, we can compare the predictions of the nn and the polynomial before computing the class. Then, fot each output neuron we can obtain a diagonal plot between the original nn prediction and the polynomial prediction.
+
+```{r}
+diag_plot <- vector(mode = "list", length(n_class))
+for (k in 1:n_class){
+  diag_plot[[k]] <- plot_NN_PR_comparison(prediction_poly_matrix[k,], prediction_NN[,k]) +
+    ggplot2::labs(x = "Predicted Y with polynomial") +
+    theme_half_open()
+  
+}
+
+diag_plot
+
+```
+
+We can also obtain the MSE between 
+
+
+```{r}
+n_test <- length(test_y)
+MSE_per_class <- vector(mode = "numeric", length(n_class))
+for (k in 1:n_class){
+  
+  MSE_per_class[k] <- sum((prediction_NN[,k] - prediction_poly_matrix[k,])^2) / n_test
+  
+}
+
+MSE_per_class
+```
+
+
+# Store all the results:
+
+Custom nn needs to be transformed into an equivalent nn using the usual keras layers. To do so we use the following function:
+
+```{r}
+build_equivalent_nn_v2 <- function(nn,
+                                   train_x,
+                                   train_y,
+                                   af_string_list,
+                                   h_neurons_vector,
+                                   keras_parameters){
+
+  p <- dim(keras_parameters$train_x)[2]
+
+  nn_equivalent <- build_keras_model(
+    p,
+    af_string_list,
+    h_neurons_vector,
+    list("no_constraint", 1)
+  )
+
+  # Compile the model
+  compile(nn_equivalent,
+          loss = keras_parameters$my_loss,
+          optimizer = keras_parameters$my_optimizer,
+          metrics = keras_parameters$my_metrics
+  )
+
+  # Fit the model
+  history <- fit(nn_equivalent,
+                 train_x,
+                 train_y,
+                 verbose = keras_parameters$my_verbose,
+                 epochs = 2,
+                 validation_split = keras_parameters$my_validation_split,
+                 batch_size = keras_parameters$my_batch
+  )
+
+  temp1 <- get_weights(nn)
+
+  temp1_len <- length(temp1)
+
+  temp2_len <-  2*(temp1_len-1)
+
+  temp2 <- vector(mode = "list", length = temp2_len)
+
+  # Custom layers give the weights in such a form that the first row is the bias vectors
+
+  for (i in 1:(temp1_len-2)){
+    temp2[[2*i-1]] <- as_tensor(temp1[[i]][-1,])
+    temp2[[2*i]] <- as_tensor(temp1[[i]][1,])
+  }
+
+  # As the last layer is non custom, it is already split in bias and kernel
+  temp2[[temp2_len-1]] <- as_tensor(temp1[[temp1_len-1]])
+  temp2[[temp2_len]] <- as_tensor(temp1[[temp1_len]])
+
+  set_weights(object = nn_equivalent,weights = temp2)
+
+  return(nn_equivalent)
+}
+```
+
+Save the nn:
+
+```{r}
+nn_equiv <- build_equivalent_nn_v2(nn,
+                                   train_x,
+                                   train_y,
+                                   af_string_list,
+                                   h_neurons_vector,
+                                   keras_parameters)
+  
+save_model_tf(nn_equiv, "temporal/Covertype_nn")
+```
+
+
+Store the parameters used to train the nn and to use NN2Poly.
+
+```{r}
+
+keras_parameters <- list(
+  # keras hyperparameters 
+  my_loss = my_loss,
+  my_metrics = my_metrics,
+  my_optimizer = my_optimizer,
+  my_epochs = my_epochs,
+  my_validation_split = my_validation_split,
+  my_verbose = my_verbose,
+  my_batch_size = my_batch_size
+)
+
+other_parameters <- list(
+  # Custom parameters using nn2poly.tools:
+  seed = my_seed,
+  af_string_list = af_string_list,
+  h_neurons_vector = h_neurons_vector ,
+  my_max_norm = my_max_norm,
+  scale_method = scale_method,
+  train_proportion = my_train_proportion
+)
+
+
+```
+
+
+
+Save the results:
+
+
+```{r}
+
+output <- vector(mode = "list", length = 0)
+  output$MSE_per_class <- MSE_per_class
+  output$test_y <- test_y
+  output$test_x <- test_x
+  output$final_poly <- final_poly
+  output$prediction_poly_matrix <- prediction_poly_matrix
+  output$prediction_poly_class <- prediction_poly_class
+  output$prediction_NN_class <- prediction_NN_class
+  output$prediction_NN <- prediction_NN
+  output$other_parameters <- other_parameters
+  output$keras_parameters <- keras_parameters
+  
+saveRDS(output, file = "temporal/Covertype_max_Q_1_results")
+
+```
+
+
+
+  
+
+
+
+
+
+
