@@ -183,7 +183,7 @@ cm1$table
 
 
 
-
+Helper used to write Latex Table
 
 ```{r}
 M <- cm1$table
@@ -202,15 +202,7 @@ for (i in 1:nrow(M)){
 str_vec
 ```
 
-
-witht 
-
-
-
 Explore the polynomials:
-
-
-
 
 ```{r}
 
@@ -321,214 +313,6 @@ plot_all
 
 
 
-
-
-
-Podmeos ver que interacciones no aparecen aun, hay demasiadas variables como para que en los 20 primeros salgan interacciones. Podemos hacer otro bucle que en vez de generar plots, generemos una tabla o simplemente ver las 10 primeras veces que sale una interaccion? algo para comparar las de orden 3 con irden 2?
-
-
-
-
-Sacar lista de 3 coeffs mas importantes, y su signifcado. Ver cada tipo de bosque y su relacion?
-
-
-```{r}
-
-
-n_important_coeffs <- 4
-info_list <- list()
-
-for (r in 1:nrow(M)){
-  Mr <- M[r,]
-  aux_total <- sort(abs(Mr),decreasing = TRUE, index.return = TRUE)
-  aux_values <- aux_total$x[1:n_important_coeffs]
-  aux_index <- aux_total$ix[1:n_important_coeffs]
-  
-  # Obtain labels:
-  list_labels <- final_poly2$labels[aux_index]
-
-  string_labels <- rep("0",n_important_coeffs)
-  for (i in 1:n_important_coeffs) {
-    # Create the label as a string of the form "l_1 l_2 ... l_t"
-    string_labels[i] <- paste(as.character(list_labels[[i]]), collapse = ",")
-  }
-
-  aux_sign <- sign(Mr)[aux_index]
-  
-  data <- data.frame(
-    name=string_labels,
-    sign = as.factor(aux_sign),
-    value=aux_values
-  )
-  
-  info_list[[r]] <- data
-}
-
-```
-
-info variables
-
-
-Name                                     Data Type    Measurement                       Description
-
-1 Elevation                               quantitative    meters                       Elevation in meters
-2 Aspect                                  quantitative    azimuth                      Aspect in degrees azimuth
-3 Slope                                   quantitative    degrees                      Slope in degrees
-4 Horizontal_Distance_To_Hydrology        quantitative    meters                       Horz Dist to nearest surface water features
-5 Vertical_Distance_To_Hydrology          quantitative    meters                       Vert Dist to nearest surface water features
-6 Horizontal_Distance_To_Roadways         quantitative    meters                       Horz Dist to nearest roadway
-7 Hillshade_9am                           quantitative    0 to 255 index               Hillshade index at 9am, summer solstice
-8 Hillshade_Noon                          quantitative    0 to 255 index               Hillshade index at noon, summer soltice
-9 Hillshade_3pm                           quantitative    0 to 255 index               Hillshade index at 3pm, summer solstice
-10 Horizontal_Distance_To_Fire_Points      quantitative    meters                       Horz Dist to nearest wildfire ignition points
-11-14 Wilderness_Area (4 binary columns)      qualitative     0 (absence) or 1 (presence)  Wilderness area designation
-15- 54 Soil_Type (40 binary columns)           qualitative     0 (absence) or 1 (presence)  Soil Type designation
-55 Cover_Type (7 types)                    integer         1 to 7                       Forest Cover Type designation
-
-
-
-51: 37	   8708		Rock outcrop - Cryumbrepts - Cryorthents complex, extremely stony.
-
-
-
-
-Si vamos tipo a tipo:
-
-Covertype 1:
-1 -- Spruce/Fir
-https://en.wikipedia.org/wiki/Spruce%E2%80%93fir_forests
-Montañas canadienses, altura tiene sentido
-
-Most important variables: 
-+1 - Elevation
--8 - Hillshade Noon
--4 - Horizontal Distance to Hydrology
-
-
-Covertype 2:
-2 -- Lodgepole Pine
-https://en.wikipedia.org/wiki/Pinus_contorta
-It is common near the ocean shore and in dry montane forests to the subalpine, but is rare in lowland rain forests.
-Distancia a agua positiva tiene sentido, supone  zonas mas secas
-
-Most important variables: 
-+8 - Hillshade Noon
-+3 - Slope
-+4 - Horizontal Distance to Hydrology
-
-
-Covertype 3:
-3 -- Ponderosa Pine
-https://en.wikipedia.org/wiki/Pinus_ponderosa
-piedemonte y en los picos de mediana altura, de ahi negativo con altura 
- In its Northern limits, it only grows below 4,300 feet (1,300 m) elevation, but is most common below 2,600 feet (800 m).
- adapted to dry, fire-affected areas, often appears on the edges of deserts 
- positivo en distancia a agua
-
-Most important variables: 
--1 - Elevation
-+8 - Hillshade Noon
-+4 - Horizontal Distance to Hydrology
-
-Covertype 4:
-4 -- Cottonwood/Willow
-https://en.wikipedia.org/wiki/Populus_deltoides
-Needs bare soil and full sun. Hillshade Noon suppne que le da el sol bien por la mañana?? 
-Near rivers
-No encuentro nada sobre altitud.
-
-
-Por el mapa parece que la Rawah  Wilderness no encaja con la zona de esta planta, por eso cuadra negativo?
-
-Most important variables: 
--1 - Elevation
-+8 - Hillshade Noon
--11 - Rawah Wilderness Area https://en.wikipedia.org/wiki/Rawah_Wilderness
-
-Covertype 5:
-5 -- Aspen
-https://en.wikipedia.org/wiki/Aspen
-high-altitude areas such as mountains or high plains . PROBLEMA CON ELEVATION NEGATIVA
-no les viene bien la sombra (-9)
-Cultivarlos tiene bajo coste por lo que son bastante usados con fines comerciales (Cerca de carreteras??)
-
-Most important variables: 
--1 - Elevation
--6 - Horizontal_Distance_To_Roadways
-+5 - Vertical_Distance_To_Hydrology
--9 - Hillshade_3pm
-
-Covertype 6:
-6 -- Douglas-fir
-https://en.wikipedia.org/wiki/Douglas_fir
-From coast level to 1500 or 2000m , con lo cual elevation tiene sentido como negativo
-
-
-Most important variables: 
--1 - Elevation
-+6 - Horizontal_Distance_To_Roadways
--3 - Slope
-
-
-Covertype 7:
-7 -- Krummholz
-https://en.wikipedia.org/wiki/Krummholz
- deformed vegetation encountered in the subarctic and subalpine tree line landscapes, shaped by continual exposure to fierce, freezing winds.
-  trees can only survive where they are sheltered by rock formations (tiene sentido 51)
-  e highest peaks of the central and even the southern Appalachian Mountains (elevation positivo tiene sentido)
- 
-
-Most important variables: 
-+1 - Elevation
-+51 - 8708 Rock outcrop - Cryumbrepts - Cryorthents complex, extremely stony.
--4 -  Horizontal Distance to Hydrology
-
-
-# Heatmap
-
-No se ve mucho porque elevation e intercept tienen valores mucho más altos que el resto de coeficientes. Separándolos sí se ve algo más.
-
-```{r}
-
-poly_single_vars <- list()
-poly_single_vars$labels <- final_poly2$labels[1:55]
-poly_single_vars$values <- final_poly2$values[,1:55]
-
-# All single variables plot
-
-df <- data.frame(poly_single_vars$values[,])
-
-# Reshape the data
-df2 <- reshape2::melt(df)
-
-df2$type <- rep(1:7,dim(df)[2])
-
-library(viridis)
-ggplot(df2, aes(variable, type, fill= value)) + 
-  geom_tile() +
-  scale_fill_viridis()
-
-# Plot without Elevation and intercept
-
-df <- data.frame(poly_single_vars$values[,3:55])
-
-# Reshape the data
-df2 <- reshape2::melt(df)
-
-df2$type <- rep(1:7,dim(df)[2])
-
-library(viridis)
-ggplot(df2, aes(variable, type, fill= value)) + 
-  geom_tile() +
-  scale_fill_viridis()
-```
-
-
-
-
-
-
-
 ```{r}
 
 # Save as pdf as to avoid problems in arxiv
@@ -536,6 +320,13 @@ pdf(file="temporal/fig_covertype_coeffs.pdf", width = 2*my_width, height = 2*my_
 plot_all
 dev.off()
 ```
+
+
+
+
+
+
+
 
 
 
